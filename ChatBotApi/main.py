@@ -25,10 +25,10 @@ async def register(U:User):
 @app.post("/chat")
 async def process_query(input: QueryInput):
     user_input = input.query
-    intent = intentClassification(user_input)
-    entities = entityExtraction(user_input)
-    emb = generate_embedding(user_input)
-    print(len(emb['embedding']))
-    print(intent,entities)
-    # insert_data('Tasks',emb['embedding'])
-    return {"received_query": input.query}
+    entities =  entityExtraction(user_input)
+    if(entities['intent'].strip().lower() == "add_task"):
+        embedding = generate_embedding(entities)
+        
+        if(entities['notification'] and entities['notification']==False):
+            insert_data('Tasks',embedding,entities)
+    return {"ok":'done'}

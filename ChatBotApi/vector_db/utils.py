@@ -2,34 +2,34 @@ from dotenv import load_dotenv
 import os
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
+from qdrant_client.models import VectorParams, Distance
 import uuid
 
 load_dotenv('./config.env')
 
 VECTOR_DB_KEY = os.getenv("VECTOR_DB_KEY")
+QDRANT_URL = os.getenv("QDRANT_URL")
 
-client = QdrantClient(host="localhost", port=6333,api_key=VECTOR_DB_KEY)
+client = QdrantClient(url=QDRANT_URL,api_key=VECTOR_DB_KEY)
+# print(QDRANT_URL,VECTOR_DB_KEY)
 
-def create_collection_if_not_exists(collection_name, vector_size=128, distance="Cosine"):
-    collections = client.get_collections()
-    existing_collections = [collection.name for collection in collections.collections]
-    print(collections)
-    if collection_name not in existing_collections:
+def insert_data(collection_name, vector, payload):
+    if not client.collection_exists(collection_name):
         client.create_collection(
             collection_name=collection_name,
-            vector_size=vector_size,
-            distance=distance
+            vectors_config=VectorParams(
+                size=768,           # Dimension of your vectors
+                distance=Distance.COSINE  # Specify the distance metric
+            )
         )
-
-def insert_data(collection_name, vector, metadata=None):
-    # Ensure the collection exists (or create it)
-    create_collection_if_not_exists(collection_name,vector_size=len(vector))
-    # Create the PointStruct object for Qdrant
-    point = PointStruct(
-        id=uuid.uuid5(),
-        vector=vector,
-        payload=metadata  # Optional metadata
+    # print(type(vector),type(payload))
+    client.upsert(
+        collection_name=collection_name,
+        points=[
+            PointStruct(
+                id=str(uuid.uuid4()),  # Generate a unique ID
+                vector=vector,  
+                payload=payload,         # Metadata for the vector
+            )
+        ]
     )
-
-    # Insert the point into the Qdrant collection
-    client.upsert(collection_name=collection_name, points=[point])
