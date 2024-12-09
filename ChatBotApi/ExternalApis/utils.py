@@ -24,45 +24,54 @@ def generate_embedding(text: str):
         content=f"{text}"
     )
     return result['embedding']
+def addDialogManagement(user_input, chat_history):
+    prompt = f"""
+    - i am personal assistance bot.
+    - user tries to add something to database.(don't include in response)
+    - so accordingly do converation with user.
+    - user have all rights what to add and what to not
+    - if reminder is true then must have date and time for when to remind
+    -  Context:
+            - Current Date: {current_date} ({current_day})
+            - Previous Conversation: {chat_history}
+            - User Input: "{user_input}"
 
-def entityExtraction(user_input):
-    try:
-        # Get the current date and current day
-        curr_date = datetime.datetime.today().strftime('%Y-%m-%d')  # '2024-12-08'
-        curr_day = datetime.datetime.today().strftime('%A')  # 'Saturday'
-
-        # Define the prompt with the current date context
-        eprompt = f"""
-        The current date is {curr_date} ({curr_day}). 
-        Extract the entities from the following user input. 
-        Return the entities in the format: 
-        {{
-          "task_type": <e.g., 'meeting', 'reminder', 'to-do'>,
-          "task_name": <e.g., 'call John', 'submit report'>,
-          "intent": <add_task,update_task,remove_task,retrive_task,general_chat,ambiguous> from this only 
-          // Add more entities if it is present in user input
-          // if the input wants the system to remind,alert or send notification 
-          // then set the "notificaiton":"true"
-        }}
-        Convert any relative dates (like 'tomorrow', 'next Monday') to absolute dates based on the current date. 
-        User Input: "{user_input}"
-        """
-        
-        eresult = model.generate_content(
-            eprompt,
+    - Your response should be in JSON format with the following structure:
+            {{
+                "text": "Response text to user",
+                "isInfoIncomplete": true/false,  # if informaion is good to go then false, else true
+                "dbAction": "add/noaction",  # Database operation
+                "intent":"add/update/delete/retrive/general_chat/ambiguous",
+                "payload": {{
+                task: <e.g., 'meeting', 'reminder', 'to-do'>,
+                task_desc:task description
+                remainder:true/false
+                -other fields ...
+                }}  # this field required if dbAction is other than noaction
+            }}
+    """
+    eresult = model.generate_content(
+            prompt,
             generation_config=genai.GenerationConfig(
                 response_mime_type="application/json"
             ),
         )
-        
-        # Parse JSON response
-        extracted_data = json.loads(eresult.text)
-        
-        return extracted_data
-    except json.JSONDecodeError:
-        print("Error decoding JSON from entity extraction response.")
-        return {}
-    except Exception as e:
-        print(f"Error during entity extraction: {e}")
-        return {}
-    
+
+        # Parse the model's JSON response
+    extracted_data = json.loads(eresult.text)
+    return extracted_data
+def AddDBConversation():
+    chat_history = ""
+    user_input = input("Enter your query: ")
+    chat_history += f"User: {user_input}"
+    res = addDialogManagement(user_input, chat_history)
+    while res['isInfoIncomplete']:
+        print(res)
+        print(f"Bot: {res['text']}")
+        chat_history += f"\nBot: {res['text']}"
+
+        user_input = input("Enter your query: ")
+        chat_history += f"\nUser: {user_input}"
+
+        res = addDialogManagement(user_input, chat_history)
+    print("Final response:", res)

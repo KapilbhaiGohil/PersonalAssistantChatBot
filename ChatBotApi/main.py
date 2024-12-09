@@ -10,6 +10,7 @@ app = FastAPI()
 
 class QueryInput(BaseModel):
     query: str 
+    chat_history:str
 
 @app.post("/register")
 async def register(U:User):
@@ -23,7 +24,7 @@ async def register(U:User):
     return JSONResponse(content=res['msg'],status_code=res['code'])
 
 @app.post("/chat")
-async def process_query(input: QueryInput):
+async def process_query(input: QueryInput,chat_history):
     user_input = input.query
     entities =  entityExtraction(user_input)
     if(entities['intent'].strip().lower() == "add_task"):
