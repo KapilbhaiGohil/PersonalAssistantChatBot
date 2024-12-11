@@ -3,14 +3,25 @@ from pydantic import BaseModel
 from mongo_db.models import User
 from mongo_db.utils import createUser, loginUser
 from vector_db.utils import insert_data
-from ExternalApis.utils import entityExtraction, generate_embedding, intentClassification
+from ExternalApis.utils import DialogForAddingTask, generalDialog, generate_embedding
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins or specify allowed domains
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],
+)
 
 class QueryInput(BaseModel):
     query: str 
     chat_history:str
+    stage:str
 
 @app.post("/register")
 async def register(U:User):
@@ -23,13 +34,21 @@ async def register(U:User):
     res = await loginUser(U)
     return JSONResponse(content=res['msg'],status_code=res['code'])
 
+@app.get("/")
+async def register():
+    print("Helo")
+    return {"ok":"result"}
+
+
 @app.post("/chat")
-async def process_query(input: QueryInput,chat_history):
+async def process_query(input: QueryInput):
     user_input = input.query
-    entities =  entityExtraction(user_input)
-    if(entities['intent'].strip().lower() == "add_task"):
-        embedding = generate_embedding(entities)
-        
-        if(entities['notification'] and entities['notification']==False):
-            insert_data('Tasks',embedding,entities)
+    stage = input.stage
+    history = input.chat_history
+    if(stage == 'add' or stage == "new"):
+        res = DialogForAddingTask(user_input,history)
+        if(res['isInfoIncomplete']==False and res['intent']=='add'):
+            emb = generate_embedding(res['payload'])
+            insert_data('Tasks',emb,res['payload'])
+        return res
     return {"ok":'done'}

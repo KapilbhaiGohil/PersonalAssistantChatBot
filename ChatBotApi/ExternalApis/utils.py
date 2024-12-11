@@ -32,7 +32,8 @@ def DialogForAddingTask(user_input, chat_history):
   - so accordingly do converation with user.
   - user have all rights what to add and what to not
   - user tries to add reminder then date and time must included
-  - in case of reminder the date and time must be of future not past
+  - the date and time must be of future not past
+  
   -  Context:
           - Current Date: {current_date} ({current_day})
           - Previous Conversation: {chat_history}
@@ -63,18 +64,29 @@ def DialogForAddingTask(user_input, chat_history):
   extracted_data = json.loads(eresult.text)
   return extracted_data
 
-def AddDBConversation():
-    chat_history = ""
-    user_input = input("Enter your query: ")
-    chat_history += f"User: {user_input}"
-    res = DialogForAddingTask(user_input, chat_history)
-    while res['isInfoIncomplete']:
-        print(res)
-        print(f"Bot: {res['text']}")
-        chat_history += f"\nBot: {res['text']}"
+def generalDialog(user_input,chat_history):
+    prompt = f"""
+  - i am personal assistance bot.
+  - user tries to do something.(don't include in response)
+  - so accordingly do converation with user.
+  - according to user input write intent in intent field
+  -  Context:
+          - Current Date: {current_date} ({current_day})
+          - Previous Conversation: {chat_history}
+          - User Input: "{user_input}"
 
-        user_input = input("Enter your query: ")
-        chat_history += f"\nUser: {user_input}"
-
-        res = DialogForAddingTask(user_input, chat_history)
-    print("Final response:", res)
+  - Your response should be in JSON format with the following structure:
+        {{
+            "text": "Response text to user",
+            "intent":"add/update/delete/retrive/general_chat/ambiguous",
+        }}
+  """
+    eresult = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json"
+            ),
+        )
+        # Parse the model's JSON response
+    extracted_data = json.loads(eresult.text)
+    return extracted_data
