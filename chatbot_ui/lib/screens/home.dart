@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:chatbot_ui/utils/colors.dart'; // Assuming you have your colors here
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../services/api.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -82,76 +81,30 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     String message = _messageController.text.trim();
 
     if (message.isNotEmpty) {
       setState(() {
-        // Add the user's message to the list immediately
         messages.add({
           'sender': 'user',
           'message': message,
         });
-
-        // Clear the input field
+        chatHistory += '\nUser: $message';
+        _scrollToBottom();
         _messageController.clear();
       });
+      var data = await ChatAPI().sendMessageToApi(message,chatHistory,stage);
+      var apiResponse = data['text'];
       setState(() {
-
-      chatHistory += '\n User: $message';
-      });
-      // Now, send the message to the API and get the response
-      _sendMessageToApi(message);
-    }
-  }
-
-  Future<void> _sendMessageToApi(String message) async {
-    const String apiUrl = "http://10.0.2.2:8000/chat"; // For Android Emulator
-
-    // Set up the headers
-    final headers = {
-      'Content-Type': 'application/json',
-    };
-
-    // Set up the body of the request (adjust this based on the API you're using)
-    var body = jsonEncode({
-      "query": message,
-      "chat_history": chatHistory,
-      "stage": stage
-    });
-    try {
-      print("Sent Body: $body");
-      final response = await http.post(Uri.parse(apiUrl), headers: headers, body: body);
-      if (response.statusCode == 200) {
-        // Parse the response
-        final data = json.decode(response.body);
-        final String apiResponse = data['text'];
-        if(data['isInfoIncomplete']==false){
-          setState(() {
-            chatHistory = '';
-          });
-        }
-        print(data);
-        setState(() {
-          // Add the API response to the messages list
-          chatHistory += '\nBot: $apiResponse';
-          // stage = data['intent'];
-          messages.add({
-            'sender': 'api',
-            'message': apiResponse,
-          });
+        chatHistory += '\nBot: $apiResponse';
+        stage = data['intent']!;
+        messages.add({
+          'sender': 'api',
+          'message': '$apiResponse',
         });
-
-        print("Updated chatHistory: $chatHistory");
-        print("Updated stage: $stage");
-        // Scroll to the bottom
-        _scrollToBottom();
-      } else {
-        // Handle error if the API request fails
-        print('Failed to get response from API: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error during API request: $e');
+      });
+      _scrollToBottom();
     }
   }
 
