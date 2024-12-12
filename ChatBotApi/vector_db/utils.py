@@ -33,3 +33,23 @@ def insert_data(collection_name, vector, payload):
             )
         ]
     )
+
+def retrieve_data(collection_name, query_vector, top_k=5):
+    # Perform a search for the nearest vectors in the collection
+    results = client.search(
+        collection_name=collection_name,
+        query_vector=query_vector,  # The vector to search for similarity
+        limit=top_k,                  # The number of nearest neighbors to retrieve
+        with_payload=True,          # Whether to include the metadata (payload)
+    )
+    
+    # Parse the results (optional: can format it in any way you'd like)
+    retrieved_data = []
+    for result in results:
+        retrieved_data.append({
+            'id': result.id,
+            'score': result.score,
+            'payload': result.payload
+        })
+    
+    return retrieved_data
