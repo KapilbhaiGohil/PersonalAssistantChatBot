@@ -9,6 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,18 +29,15 @@ class QueryInput(BaseModel):
 @app.post("/register")
 async def register(U:User):
     res = await createUser(U)
-    print(res)
     return JSONResponse(content=res['msg'],status_code=res['code'])
 
 @app.post("/login")
-async def register(U:User):
-    res = await loginUser(U)
+async def login(L:LoginRequest):
+    res = await loginUser(L.email,L.password)
+    if(res['code']==200):
+        return JSONResponse(content=res['data'],status_code=res['code'])
     return JSONResponse(content=res['msg'],status_code=res['code'])
 
-@app.get("/")
-async def register():
-    print("Helo")
-    return {"ok":"result"}
 
 
 @app.post("/chat")
@@ -64,7 +64,6 @@ async def process_query(input: QueryInput):
         print('in se request : ' + stage)
         if(stage == 'retrieve'):
             res = DialogForRetrivingTask(user_input, history)
-            print('-------------------------------------------------------')
             print(res)
             if res['dbAction'] == 'retrieve':
                 flag = 0
