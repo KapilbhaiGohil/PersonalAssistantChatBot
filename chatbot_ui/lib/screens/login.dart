@@ -1,8 +1,10 @@
 import 'package:chatbot_ui/screens/forgotPass.dart';
 import 'package:chatbot_ui/screens/register.dart';
+import 'package:chatbot_ui/services/api.dart';
 import 'package:chatbot_ui/utils/colors.dart';
 import 'package:chatbot_ui/widgets/Input.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +16,49 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final chatApi = ChatAPI();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  bool _isLoading = false;
+
+  void _login() async {
+    String email = _emailController.text;
+    String password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      var data = await chatApi.login(email, password);
+      String msg = data['msg'] ?? 'Something went wrong';
+
+      if (data['data'] != null) {
+        await _secureStorage.write(key: 'email', value: email);
+        await _secureStorage.write(key: 'password', value: password);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Login Successful')),
+        );
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg)),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,10 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
               hintText: 'Enter your email',
               labelText: 'Email',
               keyboardType: TextInputType.emailAddress,
-              onChanged: (text) {
-                // Handle text changes
-              },
-              icon: const Icon(Icons.email),
+              icon: const Icon(Icons.email), onChanged: (String e) {  },
             ),
             const SizedBox(height: 25),
             CustomTextField(
@@ -42,61 +84,44 @@ class _LoginScreenState extends State<LoginScreen> {
               hintText: 'Enter your password',
               labelText: 'Password',
               obscureText: true,
-              onChanged: (text) {
-                // Handle text changes
-              },
-              icon: const Icon(Icons.lock),
+              icon: const Icon(Icons.lock), onChanged: (String e) {  },
             ),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-              TextButton(
-                onPressed: () {
-                  // Navigate to Forgot Password Screen
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const ForgotPasswordScreen()),
-                  );
-                },
-                child: const Text(
-                  'Forgot your password?',
-                  style: TextStyle(
-                    color: AppColors.primaryColor,
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.w600,
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const ForgotPasswordScreen()),
+                    );
+                  },
+                  child: const Text(
+                    'Forgot your password?',
+                    style: TextStyle(
+                      color: AppColors.primaryColor,
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-            ]),
+              ],
+            ),
             const SizedBox(height: 10),
-            CustomButton(
+            _isLoading
+                ? const CircularProgressIndicator()
+                : CustomButton(
               text: 'Login',
-              onPressed: () {
-                // Handle login logic here, for example, API call or validation
-                String email = _emailController.text;
-                String password = _passwordController.text;
-                // Example: Check if email and password are not empty
-                if (email.isNotEmpty && password.isNotEmpty) {
-                  // Process login
-                  print("Login with email: $email and password: $password");
-                } else {
-                  // Show error message if fields are empty
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please fill in all fields')),
-                  );
-                }
-              },
+              onPressed: _login,
               icon: const Icon(Icons.login, size: 20),
               backgroundColor: AppColors.primaryColor,
               textColor: AppColors.buttonTextColor,
             ),
             const SizedBox(height: 20),
-            // TextButton for registration navigation
             TextButton(
               onPressed: () {
-                // Navigate to Register Screen
                 Navigator.push(
                   context,
                   MaterialPageRoute(

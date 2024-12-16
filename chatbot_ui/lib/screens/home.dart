@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:chatbot_ui/utils/colors.dart'; // Assuming you have your colors here
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/api.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String chatHistory = '';  // Make sure this is properly initialized
   String stage = 'new';  // Ensure this is initialized
   List<Map<String, String>> messages = [];
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _sendMessage() async {
     String message = _messageController.text.trim();
+    String? email = await _secureStorage.read(key: 'email') ?? 'no email found';
 
     if (message.isNotEmpty) {
       setState(() {
@@ -94,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _scrollToBottom();
         _messageController.clear();
       });
-      var data = await ChatAPI().sendMessageToApi(message,chatHistory,stage);
+      var data = await ChatAPI().sendMessageToApi(message,chatHistory,stage,email);
       var apiResponse = data['text'];
       setState(() {
         chatHistory += '\nBot: $apiResponse';

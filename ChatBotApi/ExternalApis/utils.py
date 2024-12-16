@@ -13,10 +13,9 @@ genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash")
 emodel = genai.GenerativeModel('models/text-embedding-004')
 
-# Get the current date and time
 now = datetime.now()
-current_date = now.strftime("%Y-%m-%d")  # Format: YYYY-MM-DD
-current_day = now.strftime("%A")  # Full weekday name (e.g., Monday)
+current_date = now.strftime("%Y-%m-%d")  
+current_day = now.strftime("%A")  
 
 def generate_embedding(text):
     result = genai.embed_content(
@@ -59,8 +58,6 @@ def DialogForAddingTask(user_input, chat_history):
                 response_mime_type="application/json"
             ),
         )
-
-        # Parse the model's JSON response
   extracted_data = json.loads(eresult.text)
   return extracted_data
 
@@ -70,13 +67,12 @@ def DialogForRetrivingTask(user_input, chat_history):
   - user tries to retrieve from database.(don't include in response)
   - so accordingly do converation with user.
   - user have all rights what to retrieve and what to not
-  - if in between you need database which match with query then make dbAction to retrieve and text should be empty
-  - you can only retrieve the information from database if user has another intent then specify in the intent so accordingly it can be passed to other module
   - MIMP: CONSIDER THE RESULT FROM THE CHAT HISTORY DATARESULT FIELD ONLY FOR FINAL RESPONCE.
   -  Context:
           - Current Date: {current_date} ({current_day})
           - Previous Conversation: {chat_history}
           - User Input: "{user_input}"
+
   - Your response should be in JSON format with the following structure:
         {{
             "text": "Response text to user",

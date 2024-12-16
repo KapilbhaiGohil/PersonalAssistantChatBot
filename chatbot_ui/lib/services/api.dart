@@ -3,18 +3,34 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ChatAPI {
-  Future<http.Response> signUp(String email,String password)async{
+  static const apiUrl = "http://10.0.2.2:8000";
+
+  Future<Map<String,dynamic>> login(String email,String password)async{
     var body = jsonEncode(
       {
         'email':email,
         'password':password
       }
     );
-    http.Response res = await http.post(Uri.parse("uri"),headers: {"Content-Type": "application/json"},body:body);
-    return res;
+    http.Response res = await http.post(Uri.parse("$apiUrl/login"),headers: {"Content-Type": "application/json"},body:body);
+    var data = json.decode(res.body);
+    return data;
   }
 
-  Future<Map<String,dynamic>> sendMessageToApi(String message,chatHistory,stage) async {
+  Future<Map<String,dynamic>> register(String email,String password,String name)async{
+    var body = jsonEncode(
+        {
+          'email':email,
+          'password':password,
+          'name':name
+        }
+    );
+    http.Response res = await http.post(Uri.parse("$apiUrl/register"),headers: {"Content-Type": "application/json"},body:body);
+    var data = json.decode(res.body);
+    return data;
+  }
+
+  Future<Map<String,dynamic>> sendMessageToApi(String message,chatHistory,stage,email) async {
     const String apiUrl = "http://10.0.2.2:8000/chat";
     final headers = {
       'Content-Type': 'application/json',
@@ -22,7 +38,8 @@ class ChatAPI {
     var body = jsonEncode({
       "query": message,
       "chat_history": chatHistory,
-      "stage": stage
+      "stage": stage,
+      "email":email
     });
     try {
       print(body);
