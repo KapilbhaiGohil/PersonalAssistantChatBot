@@ -1,7 +1,7 @@
+import 'package:chatbot_ui/services/api.dart';
 import 'package:flutter/material.dart';
 import 'package:chatbot_ui/utils/colors.dart';
 import 'package:chatbot_ui/widgets/Input.dart'; // Assuming CustomTextField is defined here
-
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -14,15 +14,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final chatApi = ChatAPI();
+
+  bool _isLoading = false;  // Track the loading state
 
   // Helper function to validate form inputs
   bool _validateForm() {
     String email = _emailController.text;
     String password = _passwordController.text;
     String confirmPassword = _confirmPasswordController.text;
+    String name = _nameController.text;
 
     // Simple validation for empty fields
-    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty || name.isEmpty) {
       return false;
     }
 
@@ -33,7 +38,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       return false;
     }
-
     return true;
   }
 
@@ -49,13 +53,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             CustomTextField(
+              controller: _nameController,
+              hintText: 'Enter your name',
+              labelText: 'Name',
+              keyboardType: TextInputType.name,
+              onChanged: (text) {},
+              icon: const Icon(Icons.person),
+            ),
+            const SizedBox(height: 20),
+            CustomTextField(
               controller: _emailController,
               hintText: 'Enter your email',
               labelText: 'Email',
               keyboardType: TextInputType.emailAddress,
-              onChanged: (text) {
-                // Handle text changes
-              },
+              onChanged: (text) {},
               icon: const Icon(Icons.email),
             ),
             const SizedBox(height: 20),
@@ -64,9 +75,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               hintText: 'Enter your password',
               labelText: 'Password',
               obscureText: true,
-              onChanged: (text) {
-                // Handle text changes
-              },
+              onChanged: (text) {},
               icon: const Icon(Icons.lock),
             ),
             const SizedBox(height: 20),
@@ -75,21 +84,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
               hintText: 'Confirm your password',
               labelText: 'Confirm Password',
               obscureText: true,
-              onChanged: (text) {
-                // Handle text changes
-              },
+              onChanged: (text) {},
               icon: const Icon(Icons.lock),
             ),
             const SizedBox(height: 25),
-            CustomButton(
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())  // Show loader if _isLoading is true
+                : CustomButton(
               text: 'Register',
-              onPressed: () {
-                // Perform registration if inputs are valid
+              onPressed: () async {
                 if (_validateForm()) {
+                  setState(() {
+                    _isLoading = true;  // Set loading state to true
+                  });
+
                   String email = _emailController.text;
                   String password = _passwordController.text;
+                  String name = _nameController.text;
                   print("Register with email: $email and password: $password");
-                  // Implement registration logic here, such as API call
+
+                  // Implement registration logic here
+                  var data = await chatApi.register(email, password, name);
+                  setState(() {
+                    _isLoading = false;  // Set loading state to false after the API call
+                  });
+                  String msg = data['msg'] ?? "Some error occured";
+                  if(data['status']){
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Registration Successfull')),
+                    );
+                  }else{
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(msg)),
+                    );
+                  }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Please fill in all fields correctly')),
@@ -103,8 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 20),
             TextButton(
               onPressed: () {
-                // Navigate back to Login Screen
-                Navigator.pop(context);
+                Navigator.pop(context); // Navigate back to Login Screen
               },
               child: const Text(
                 'Already have an account? Login here.',

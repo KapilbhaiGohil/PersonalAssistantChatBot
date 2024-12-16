@@ -55,18 +55,19 @@ async def process_query(input: QueryInput):
     if(stage == 'new'):
         stage = intentClassification(user_input)['intent']
     print(stage)
-    if stage == 'add' or stage =='general_chat' or stage == 'ambiguous' :
+    if stage == 'add' or stage =='general' or stage == 'ambiguous' :
         res = DialogForAddingTask(user_input,history)
         if(res['dbAction']=='add' and res['isInfoIncomplete']==False):
             info = await insertTask(email,res['payload'])
+            res['intent'] = 'new'
             if(info['code']==200):
                 return res
     
-    elif stage == 'retrive':
+    elif stage == 'retrieve':
         info = await retriveAllTask(email)
-        print(info)
-        history += '\nDATARESULT:{info}'
-        res = await DialogForRetrivingTask(user_input,history)
+        history += f'\nDATARESULT:{info}'
+        res = DialogForRetrivingTask(user_input,history)
+        res['intent'] = 'new'
     elif stage == 'delete':
         print('delete')
     else :

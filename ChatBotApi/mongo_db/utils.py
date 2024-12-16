@@ -3,6 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 from dotenv import load_dotenv
 from mongo_db.models import User
+from bson import ObjectId
 
 load_dotenv('./config.env')
 
@@ -22,8 +23,7 @@ async def createUser(U: User):
     
     hashed_pass = bcrypt.hashpw(U.password.encode('utf-8'), bcrypt.gensalt())
     U.password = hashed_pass.decode('utf-8')
-    await UserCollection.insert_one(U.model_dump())
-    
+    data = await UserCollection.insert_one(U.model_dump())
     return {"msg": "User created successfully", "code": 200}
 
 async def loginUser(email: str, password: str):
@@ -53,12 +53,11 @@ async def insertTask(email, task):
 async def retriveAllTask(email):
     if not email:
         raise ValueError("Email is required.")
-    tasks = await TaskCollection.find({"email": email}).to_list(None)
+    tasks = await TaskCollection.find({"email": email},{"_id": 0, "task": 1}).to_list(None)
     if not tasks:
         return {"msg": "No tasks found for this user", "code": 404}
     return {"msg": "Tasks retrieved successfully", "code": 200, "data": tasks}
 
-from bson import ObjectId
 
 async def updateTask(task_id: str, email: str, new_task: str):
     if not task_id or not email or not new_task:

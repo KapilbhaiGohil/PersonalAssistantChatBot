@@ -67,7 +67,9 @@ def DialogForRetrivingTask(user_input, chat_history):
   - user tries to retrieve from database.(don't include in response)
   - so accordingly do converation with user.
   - user have all rights what to retrieve and what to not
-  - MIMP: CONSIDER THE RESULT FROM THE CHAT HISTORY DATARESULT FIELD ONLY FOR FINAL RESPONCE.
+  - Dataresult contains the data availabe in the database (mongodb)
+  - return result in natural language format
+  - give output in bullet points 
   -  Context:
           - Current Date: {current_date} ({current_day})
           - Previous Conversation: {chat_history}
@@ -113,7 +115,7 @@ def intentClassification(user_input):
   - "update": User wants to update an existing task or item.
   - "delete": User wants to remove a task or item.
   - "retrieve": User is asking to retrieve information about a task.
-  - "general_chat": The user is engaging in a casual or general conversation.
+  - "general": The user is engaging in a casual or general conversation.
   - "ambiguous": The input is unclear, and it's not possible to determine the intent.
 
   Example:

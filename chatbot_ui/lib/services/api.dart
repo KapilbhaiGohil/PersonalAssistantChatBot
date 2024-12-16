@@ -27,6 +27,11 @@ class ChatAPI {
     );
     http.Response res = await http.post(Uri.parse("$apiUrl/register"),headers: {"Content-Type": "application/json"},body:body);
     var data = json.decode(res.body);
+    if(res.statusCode == 200){
+      data['status'] = true;
+    }else{
+      data['status'] = false;
+    }
     return data;
   }
 
