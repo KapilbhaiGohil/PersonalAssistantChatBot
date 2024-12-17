@@ -53,14 +53,14 @@ async def insertTask(email, task):
 async def retriveAllTask(email):
     if not email:
         raise ValueError("Email is required.")
-    tasks = await TaskCollection.find({"email": email},{"_id": 0, "task": 1}).to_list(None)
+    tasks = await TaskCollection.find({"email": email},{"_id": 1, "task": 1}).to_list(None)
     if not tasks:
         return {"msg": "No tasks found for this user", "code": 404}
     return {"msg": "Tasks retrieved successfully", "code": 200, "data": tasks}
 
 
-async def updateTask(task_id: str, email: str, new_task: str):
-    if not task_id or not email or not new_task:
+async def updateTask(task_id: str, new_task: str):
+    if not task_id or not new_task:
         return {"msg": "Task ID, email, and new task content are required", "code": 400}
     
     if not ObjectId.is_valid(task_id):
@@ -68,7 +68,7 @@ async def updateTask(task_id: str, email: str, new_task: str):
     
     try:
         result = await TaskCollection.update_one(
-            {"_id": ObjectId(task_id), "email": email},  
+            {"_id": ObjectId(task_id)},  
             {"$set": {"task": new_task}}  
         )
         
@@ -80,8 +80,8 @@ async def updateTask(task_id: str, email: str, new_task: str):
     except Exception as e:
         return {"msg": f"Error updating task: {e}", "code": 500}
 
-async def deleteTask(task_id: str, email: str):
-    if not task_id or not email:
+async def deleteTask(task_id: str):
+    if not task_id :
         return {"msg": "Task ID and email are required", "code": 400}
     
     if not ObjectId.is_valid(task_id):
@@ -89,7 +89,7 @@ async def deleteTask(task_id: str, email: str):
     
     try:
         result = await TaskCollection.delete_one(
-            {"_id": ObjectId(task_id), "email": email} 
+            {"_id": ObjectId(task_id)} 
         )
         
         if result.deleted_count == 0:

@@ -102,6 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         chatHistory += '\nBot: $apiResponse';
         stage = data['intent']!;
+        if(stage == 'new')chatHistory = '';
         messages.add({
           'sender': 'api',
           'message': '$apiResponse',

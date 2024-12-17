@@ -31,7 +31,8 @@ def DialogForAddingTask(user_input, chat_history):
   - so accordingly do converation with user.
   - user have all rights what to add and what to not
   - if user tries to add reminder then date and time must included
-  - the date and time must be of future not past(consider am pm carefully)
+  - the date and time must be of future not past
+  - consider am / pm carefully 
   - you can only add the information into database if user has another intent then specify in the intent so accordingly it can be passed to other module
   -  Context:
           - Current Date: {current_date} ({current_day})
@@ -43,7 +44,7 @@ def DialogForAddingTask(user_input, chat_history):
             "text": "Response text to user",
             "isInfoIncomplete": true/false,  # if informaion is good to go then false, else true
             "dbAction": "add/noaction",  # Database operation
-            "intent":"add/update/delete/retrieve/general_chat/ambiguous",
+            "intent":"add/update/delete/retrieve/general/ambiguous",
             "payload": {{
               task: <e.g., 'meeting', 'reminder', 'to-do'>,
               task_desc:task description
@@ -80,7 +81,7 @@ def DialogForRetrivingTask(user_input, chat_history):
             "text": "Response text to user",
             "isInfoIncomplete": true/false,  # if informaion is good to go then false, else true
             "dbAction": "retrieve/noaction",  # Database operation
-            "intent":"add/update/delete/retrieve/general_chat/ambiguous",
+            "intent":"add/update/delete/retrieve/general/ambiguous",
             "query": {{
               # should contains field like date,time,task,task_desc,remainder,etc.
             }}  # this field required if dbAction is other than noaction
@@ -97,6 +98,80 @@ def DialogForRetrivingTask(user_input, chat_history):
   extracted_data = json.loads(eresult.text)
   return extracted_data
 
+
+def DialogForUpdatingTask(user_input, chat_history):
+  prompt = f"""
+  - i am personal assistance bot.
+  - user tries to update from database.(don't include in response)
+  - so accordingly do converation with user.
+  - user have all rights what to update and what to not
+  - Dataresult contains the data availabe in the database (mongodb)
+  - when everything confirmed at last make dbAction update and payload contains updated document
+  - _id contains id of the document to be update
+
+  -  Context:
+          - Current Date: {current_date} ({current_day})
+          - Previous Conversation: {chat_history}
+          - User Input: "{user_input}"
+
+  - Your response should be in JSON format with the following structure:
+        {{
+            "text": "Response text to user",
+            "isInfoIncomplete": true/false,  # if informaion is good to go then false, else true
+            "dbAction": "update/noaction",  # Database operation
+            "intent":"add/update/delete/retrieve/general/ambiguous",
+            "_id":object id or none
+            "payload": {{
+              
+            }}  # this field required if dbAction is other than noaction
+        }}
+  """
+  eresult = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json"
+            ),
+        )
+
+        # Parse the model's JSON response
+  extracted_data = json.loads(eresult.text)
+  return extracted_data
+
+
+def DialogForDeletingTask(user_input, chat_history):
+  prompt = f"""
+  - i am personal assistance bot.
+  - user tries to delete from database.(don't include in response)
+  - so accordingly do converation with user.
+  - user have all rights what to update and what to not
+  - Dataresult contains the data availabe in the database (mongodb)
+  - when everything confirmed at last make dbAction delete
+  - _id contains list of ids of the document to be delete
+  - don't give response like wait or something data already deleted once the dbAction = delete and isInfoIncomplete = true
+  -  Context:
+          - Current Date: {current_date} ({current_day})
+          - Previous Conversation: {chat_history}
+          - User Input: "{user_input}"
+
+  - Your response should be in JSON format with the following structure:
+        {{
+            "text": "Response text to user",
+            "isInfoIncomplete": true/false,  # if informaion is good to go then false, else true
+            "dbAction": "update/noaction",  # Database operation
+            "intent":"add/update/delete/retrieve/general/ambiguous",
+            "_id":[object id list] or none
+        }}
+  """
+  eresult = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json"
+            ),
+        )
+
+        # Parse the model's JSON response
+  extracted_data = json.loads(eresult.text)
+  return extracted_data
 
 def intentClassification(user_input):
    prompt = f"""
@@ -142,38 +217,3 @@ def intentClassification(user_input):
 
    extracted_data = json.loads(eresult.text)
    return extracted_data
-
-def DialogForDeletingTask(user_input, chat_history):
-  prompt = f"""
-  - i am personal assistance bot.
-  - user tries to delete from database.(don't include in response)
-  - so accordingly do converation with user.
-  - user have all rights what to retrieve and what to not
-  - if in between you need database which match with query then make dbAction to retrieve and text should be empty
-  - you can only retrieve the information from database if user has another intent then specify in the intent so accordingly it can be passed to other module
-  - MIMP: CONSIDER THE RESULT FROM THE CHAT HISTORY DATARESULT FIELD ONLY FOR FINAL RESPONCE.
-  -  Context:
-          - Current Date: {current_date} ({current_day})
-          - Previous Conversation: {chat_history}
-          - User Input: "{user_input}"
-  - Your response should be in JSON format with the following structure:
-        {{
-            "text": "Response text to user",
-            "isInfoIncomplete": true/false,  # if informaion is good to go then false, else true
-            "dbAction": "retrieve/noaction",  # Database operation
-            "intent":"add/update/delete/retrieve/general_chat/ambiguous",
-            "query": {{
-              # should contains field like date,time,task,task_desc,remainder,etc.
-            }}  # this field required if dbAction is other than noaction
-        }}
-  """
-  eresult = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json"
-            ),
-        )
-
-        # Parse the model's JSON response
-  extracted_data = json.loads(eresult.text)
-  return extracted_data

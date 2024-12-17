@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from mongo_db.models import User
-from mongo_db.utils import createUser, insertTask, loginUser,retriveAllTask
-from ExternalApis.utils import DialogForAddingTask,DialogForRetrivingTask,intentClassification
+from mongo_db.utils import createUser, insertTask, loginUser,retriveAllTask,updateTask,deleteTask
+from ExternalApis.utils import DialogForAddingTask,DialogForRetrivingTask, DialogForUpdatingTask,intentClassification,DialogForDeletingTask
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -43,7 +43,6 @@ async def login(L:LoginRequest):
     return returnRequest(res)
 
 
-
 @app.post("/chat")
 async def process_query(input: QueryInput):
     user_input = input.query
@@ -55,7 +54,11 @@ async def process_query(input: QueryInput):
     if(stage == 'new'):
         stage = intentClassification(user_input)['intent']
     print(stage)
-    if stage == 'add' or stage =='general' or stage == 'ambiguous' :
+    if stage =='general' or stage == 'ambiguous':
+        res = DialogForAddingTask(user_input,history)
+        res['intent'] = 'new'
+        return res
+    if stage == 'add':
         res = DialogForAddingTask(user_input,history)
         if(res['dbAction']=='add' and res['isInfoIncomplete']==False):
             info = await insertTask(email,res['payload'])
@@ -65,11 +68,27 @@ async def process_query(input: QueryInput):
     
     elif stage == 'retrieve':
         info = await retriveAllTask(email)
+        print(info)
         history += f'\nDATARESULT:{info}'
         res = DialogForRetrivingTask(user_input,history)
         res['intent'] = 'new'
+    elif stage == 'update':
+        info = await retriveAllTask(email)
+        history += f'\nDATARESULT:{info}'
+        res = DialogForUpdatingTask(user_input,history)
+        if(res['isInfoIncomplete']==False and res['dbAction']=='update'):
+            await updateTask(res['_id'],res['payload']['task'])
+            res['intent'] = 'new'
     elif stage == 'delete':
-        print('delete')
+        info = await retriveAllTask(email)
+        history += f'\nDATARESULT:{info}'
+        res = DialogForDeletingTask(user_input,history)
+        if(res['isInfoIncomplete']==False and res['dbAction']=='delete'):
+            print(res)
+            for id in res['_id']:
+                await deleteTask(id)
+            res['intent'] = 'new'
+        return res
     else :
         print("error")
     return res
