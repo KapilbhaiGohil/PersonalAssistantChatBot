@@ -99,3 +99,20 @@ async def deleteTask(task_id: str):
     
     except Exception as e:
         return {"msg": f"Error deleting task: {e}", "code": 500}
+
+async def saveGoogleToken(email: str, access_token: str):
+    if not email or not access_token:
+        return {"msg": "Email and access token are required", "code": 400}
+    user_exist = await UserCollection.find_one({"email": email})
+    if not user_exist:
+        return {"msg": "User not found", "code": 404}
+    try:
+        result = await UserCollection.update_one(
+            {"email": email}, 
+            {"$set": {"google_access_token": access_token}}  
+        )
+        if result.matched_count == 0:
+            return {"msg": "User not found", "code": 404}
+        return {"msg": "Google access token saved successfully", "code": 200}
+    except Exception as e:
+        return {"msg": f"Error saving Google token: {e}", "code": 500}

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:chatbot_ui/utils/colors.dart'; // Assuming you have your colors here
+import 'package:chatbot_ui/utils/colors.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:googleapis/calendar/v3.dart' as calendar;
+import 'package:googleapis_auth/auth_io.dart';
+import 'package:http/http.dart' as http;
 import '../services/api.dart';
-
+import '../widgets/utils.dart';
+import '../services/api.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -10,73 +15,166 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  String chatHistory = '';  // Make sure this is properly initialized
-  String stage = 'new';  // Ensure this is initialized
-  List<Map<String, String>> messages = [];
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  late GoogleSignIn _googleSignIn;
+  String chatHistory = '';
+  String stage = 'new';
+  List<Map<String, String>> messages = [];
+  late AnimationController _menuController;
+  late Animation<double> _menuAnimation;
+  bool isMenuOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _googleSignIn = GoogleSignIn(scopes: ['https://www.googleapis.com/auth/calendar']);
+    _menuController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _menuAnimation = CurvedAnimation(
+      parent: _menuController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    _menuController.dispose();
+    super.dispose();
+  }
+
+  void _toggleMenu() {
+    setState(() {
+      isMenuOpen = !isMenuOpen;
+      if (isMenuOpen) {
+        _menuController.forward();
+      } else {
+        _menuController.reverse();
+      }
+    });
+  }
+
+  void _closeMenu() {
+    if (isMenuOpen) {
+      setState(() {
+        isMenuOpen = false;
+        _menuController.reverse();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Chat Application"),
-        backgroundColor: AppColors.appBarColor,
-      ),
-      backgroundColor: AppColors.scaffoldBackgroundColor,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Chat messages display section
-            Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                itemCount: messages.length,
-                itemBuilder: (context, index) {
-                  String sender = messages[index]['sender']!;
-                  String message = messages[index]['message']!;
-                  return ChatBubble(
-                    message: message,
-                    sender: sender,
-                    delay: index * 300, // Staggered animation delay
-                  );
-                },
-              ),
+    return GestureDetector(
+      onTap: _closeMenu,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text("Chat Application"),
+          backgroundColor: AppColors.appBarColor,
+          leading: IconButton(
+            icon: AnimatedIcon(
+              icon: AnimatedIcons.menu_close,
+              progress: _menuAnimation,
             ),
-            // Message input section
+            onPressed: _toggleMenu,
+          ),
+        ),
+        backgroundColor: AppColors.scaffoldBackgroundColor,
+        body: Stack(
+          children: [
             Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: Row(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
                 children: [
-                  // TextField for message input
                   Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: 'Type a message...',
-                        filled: true,
-                        fillColor: AppColors.cardBackgroundColor,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30.0),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      ),
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        String sender = messages[index]['sender']!;
+                        String message = messages[index]['message']!;
+                        return ChatBubble(
+                          message: message,
+                          sender: sender,
+                          delay: index * 300,
+                        );
+                      },
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  // Send Button
-                  IconButton(
-                    onPressed: _sendMessage,
-                    icon: const Icon(Icons.send),
-                    color: AppColors.buttonBackgroundColor,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            decoration: InputDecoration(
+                              hintText: 'Type a message...',
+                              filled: true,
+                              fillColor: AppColors.cardBackgroundColor,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30.0),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _sendMessage,
+                          icon: const Icon(Icons.send),
+                          color: AppColors.buttonBackgroundColor,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
+            if (isMenuOpen)
+              Positioned(
+                top: 0,
+                left: 0,
+                child: SizeTransition(
+                  sizeFactor: _menuAnimation,
+                  axisAlignment: -1.0,
+                  child: Container(
+                    color: AppColors.cardBackgroundColor,
+                    width: 200,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.logout),
+                          title: const Text('Log Out'),
+                          onTap: () async {
+                            _closeMenu();
+                            await Future.delayed(const Duration(milliseconds: 200));
+                            await _secureStorage.deleteAll();
+                            Navigator.of(context).pushReplacementNamed('/login');
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.link),
+                          title: const Text('Connect with Google'),
+                          onTap: () async {
+                            _closeMenu();
+                            await Future.delayed(const Duration(milliseconds: 200));
+                            await ChatAPI().connectWithGoogle(_googleSignIn);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -97,12 +195,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _scrollToBottom();
         _messageController.clear();
       });
-      var data = await ChatAPI().sendMessageToApi(message,chatHistory,stage,email);
+      var data = await ChatAPI().sendMessageToApi(message, chatHistory, stage, email);
       var apiResponse = data['text'];
       setState(() {
         chatHistory += '\nBot: $apiResponse';
         stage = data['intent']!;
-        // if(stage == 'new')chatHistory = '';
         messages.add({
           'sender': 'api',
           'message': '$apiResponse',
@@ -122,64 +219,5 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     });
-  }
-}
-
-class ChatBubble extends StatelessWidget {
-  final String message;
-  final String sender;
-  final int delay;
-
-  const ChatBubble({super.key, required this.message, required this.sender, this.delay = 0});
-
-  @override
-  Widget build(BuildContext context) {
-    bool isUser = sender == 'user';
-    Alignment alignment = isUser ? Alignment.centerRight : Alignment.centerLeft;
-    Color bubbleColor = isUser ? AppColors.buttonBackgroundColor : AppColors.cardBackgroundColor;
-    Color textColor = isUser ? AppColors.textColor : AppColors.secondaryTextColor;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Align(
-        alignment: alignment,
-        child: TweenAnimationBuilder(
-          duration: const Duration(milliseconds: 500), // Animation duration
-          tween: Tween(begin: 0.0, end: 1.0),
-          builder: (context, double opacity, child) {
-            return Opacity(
-              opacity: opacity,
-              child: ScaleTransition(
-                scale: CurvedAnimation(
-                  parent: AlwaysStoppedAnimation(opacity),
-                  curve: Curves.easeOut,
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15.0),
-                  decoration: BoxDecoration(
-                    color: bubbleColor,
-                    borderRadius: BorderRadius.circular(20.0),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 8.0,
-                        offset: Offset(2, 2),
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    message,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 16.0,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
   }
 }

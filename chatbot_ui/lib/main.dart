@@ -59,7 +59,7 @@ class _MyAppState extends State<MyApp> {
       home: isLoading
           ? const Center(
         child: CircularProgressIndicator(),
-      )
+        )
           : isLoggedIn
           ? const HomeScreen()
           : const LoginScreen(),

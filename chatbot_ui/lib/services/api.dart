@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
 class ChatAPI {
@@ -33,6 +34,42 @@ class ChatAPI {
       data['status'] = false;
     }
     return data;
+  }
+
+  Future<void> connectWithGoogle(GoogleSignIn googleSignIn) async {
+    try {
+      final GoogleSignInAccount? account = await googleSignIn.signIn();
+      if (account != null) {
+        final GoogleSignInAuthentication auth = await account.authentication;
+        final String accessToken = auth.accessToken!;
+        var data = await sendTokenToBackend(accessToken);
+      }
+    } catch (e) {
+      print('Error connecting with Google: $e');
+    }
+  }
+  Future<void> sendTokenToBackend(String accessToken) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${apiUrl}/token'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'access_token': accessToken,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        // Handle success
+        print('Token sent successfully to the backend!');
+        // Optionally, you could get some data back from the backend, like user info or calendar events
+      } else {
+        print('Failed to send token to backend: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error sending token to backend: $e');
+    }
   }
 
   Future<Map<String,dynamic>> sendMessageToApi(String message,chatHistory,stage,email) async {
