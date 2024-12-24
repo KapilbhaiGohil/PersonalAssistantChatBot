@@ -83,8 +83,8 @@ async def process_query(input: QueryInput):
         info = await retriveAllTask(email)
         history += f'\nDATARESULT:{info}'
         res = DialogForDeletingTask(user_input,history)
+        print(res)
         if(res['isInfoIncomplete']==False and res['dbAction']=='delete'):
-            print(res)
             for id in res['_id']:
                 await deleteTask(id)
             res['intent'] = 'new'

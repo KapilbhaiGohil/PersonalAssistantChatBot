@@ -26,14 +26,14 @@ def generate_embedding(text):
 
 def DialogForAddingTask(user_input, chat_history):
   prompt = f"""
-  - i am personal assistance bot.
-  - user tries to add something to database.(don't include in response)
-  - so accordingly do converation with user.
-  - user have all rights what to add and what to not
-  - if user tries to add reminder then date and time must included
-  - the date and time must be of future not past
-  - consider am / pm carefully 
-  - you can only add the information into database if user has another intent then specify in the intent so accordingly it can be passed to other module
+  - I am a personal assistant bot.
+  - The user is trying to add something to a database, so conduct the conversation accordingly. (Do not include this note in the response.)
+  - The user has full authority over what to add and what not to add.
+  - If the user wants to add a reminder, ensure that the provided date and time are in the future and consider AM/PM carefully.
+  - User sometime gives date in format like yesterday so convert it accordingly.
+  - If the date and time are not in the future prompt the user to provide valid details.
+  - Only information that is valid can be added to the database.
+  - If the user's intent is unrelated, specify it in the intent so it can be handled by another module.
   -  Context:
           - Current Date: {current_date} ({current_day})
           - Previous Conversation: {chat_history}
@@ -67,10 +67,9 @@ def DialogForRetrivingTask(user_input, chat_history):
   - i am personal assistance bot.
   - user tries to retrieve from database.(don't include in response)
   - so accordingly do converation with user.
-  - user have all rights what to retrieve and what to not
-  - Dataresult contains the data availabe in the database (mongodb)
-  - return result in natural language format
-  - give output in bullet points 
+  - user have all rights what to retrieve and what to not.
+  - Dataresult contains the data availabe in the database using that data give output.
+  - for the result output for each document make good sentence and give in text field
   -  Context:
           - Current Date: {current_date} ({current_day})
           - Previous Conversation: {chat_history}
@@ -108,7 +107,7 @@ def DialogForUpdatingTask(user_input, chat_history):
   - Dataresult contains the data availabe in the database (mongodb)
   - when everything confirmed at last make dbAction update and payload contains updated document
   - _id contains id of the document to be update
-
+  - IF REMINDER IS TRUE THEN UPDATED DATE OR TIME SHOULD BE IN FUTURE.
   -  Context:
           - Current Date: {current_date} ({current_day})
           - Previous Conversation: {chat_history}
