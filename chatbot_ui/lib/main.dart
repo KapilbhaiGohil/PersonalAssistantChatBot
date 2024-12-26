@@ -1,73 +1,50 @@
-import 'package:chatbot_ui/screens/forgotPass.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:chatbot_ui/screens/home.dart';
 import 'package:chatbot_ui/screens/login.dart';
-import 'package:chatbot_ui/screens/register.dart';
-import 'package:chatbot_ui/services/api.dart';
 import 'package:chatbot_ui/utils/theme.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(); // Initialize Firebase
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  final chatApi = ChatAPI();
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  bool isLoggedIn = false;
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    checkLoginStatus();
-  }
-
-  Future<void> checkLoginStatus() async {
-    try {
-      String? email = await _secureStorage.read(key: 'email');
-      String? password = await _secureStorage.read(key: 'password');
-      if (email != null && password != null) {
-        var data = await chatApi.login(email, password);
-        if (data['data'] != null) {
-          setState(() {
-            isLoggedIn = true;
-          });
-        }
-      }
-    } catch (e) {
-      print("Error during login: $e");
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: darkTheme,
       title: "ChatBot-V1.0",
-      home: isLoading
-          ? const Center(
-        child: CircularProgressIndicator(),
-        )
-          : isLoggedIn
-          ? const HomeScreen()
-          : const LoginScreen(),
+      home: const AuthWrapper(),
       routes: {
         '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(),
-        '/forgot-pass': (context) => const ForgotPasswordScreen(),
         '/home': (context) => const HomeScreen(),
+      },
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasData) {
+          return const HomeScreen();
+        }
+        return const LoginScreen();
       },
     );
   }

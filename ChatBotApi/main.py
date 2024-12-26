@@ -1,7 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
-from mongo_db.models import User
-from mongo_db.utils import createUser, insertTask, loginUser, retriveAllTask, saveGoogleToken, updateTask, deleteTask
+from firebase.utils import insertTask, retriveAllTask, updateTask, deleteTask
 from ExternalApis.utils import (
     DialogForAddingTask, DialogForRetrivingTask, DialogForUpdatingTask,
     intentClassification, DialogForDeletingTask
@@ -21,9 +20,6 @@ class QueryInput(BaseModel):
     stage: str
     email: str
 
-class TokenRequest(BaseModel):
-    access_token: str  # User's access token (e.g., from Google)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,19 +32,6 @@ def returnRequest(res):
     if 'data' in res:
         return JSONResponse(content={"msg": res['msg'], "data": res['data']}, status_code=res['code'])
     return JSONResponse(content={"msg": res['msg']}, status_code=res['code'])
-
-
-@app.post("/register")
-async def register(U: User):
-    res = await createUser(U)
-    return returnRequest(res)
-
-
-@app.post("/login")
-async def login(L: LoginRequest):
-    res = await loginUser(L.email, L.password)
-    return returnRequest(res)
-
 
 @app.post("/chat")
 async def process_query(input: QueryInput):
@@ -100,16 +83,3 @@ async def process_query(input: QueryInput):
     return res
 
 
-@app.post("/token")
-async def get_token(token_request: TokenRequest):
-    """Endpoint to receive and process the user's token and save it to MongoDB."""
-    access_token = token_request.access_token
-    email = token_request.email
-    if access_token:
-        result = await saveGoogleToken(email, access_token)
-        if result["code"] == 200:
-            return JSONResponse(content={"msg": "Token received and processed successfully."}, status_code=200)
-        else:
-            return JSONResponse(content={"msg": result["msg"]}, status_code=result["code"])
-    else:
-        raise HTTPException(status_code=400, detail="Invalid token.")

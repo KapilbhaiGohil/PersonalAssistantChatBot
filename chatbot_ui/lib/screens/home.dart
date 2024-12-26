@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:chatbot_ui/utils/colors.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:googleapis/calendar/v3.dart' as calendar;
-import 'package:googleapis_auth/auth_io.dart';
-import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/api.dart';
 import '../widgets/utils.dart';
-import '../services/api.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -18,8 +16,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  late GoogleSignIn _googleSignIn;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
   String chatHistory = '';
   String stage = 'new';
   List<Map<String, String>> messages = [];
@@ -30,7 +27,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _googleSignIn = GoogleSignIn(scopes: ['https://www.googleapis.com/auth/calendar']);
     _menuController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -66,6 +62,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         isMenuOpen = false;
         _menuController.reverse();
       });
+    }
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      await _googleSignIn.signOut();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error during sign out: $e')),
+      );
     }
   }
 
@@ -157,17 +164,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           onTap: () async {
                             _closeMenu();
                             await Future.delayed(const Duration(milliseconds: 200));
-                            await _secureStorage.deleteAll();
-                            Navigator.of(context).pushReplacementNamed('/login');
-                          },
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.link),
-                          title: const Text('Connect with Google'),
-                          onTap: () async {
-                            _closeMenu();
-                            await Future.delayed(const Duration(milliseconds: 200));
-                            await ChatAPI().connectWithGoogle(_googleSignIn);
+                            await _signOut();
                           },
                         ),
                       ],
@@ -183,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Future<void> _sendMessage() async {
     String message = _messageController.text.trim();
-    String? email = await _secureStorage.read(key: 'email') ?? 'no email found';
+    String? email = FirebaseAuth.instance.currentUser?.email;
 
     if (message.isNotEmpty) {
       setState(() {
