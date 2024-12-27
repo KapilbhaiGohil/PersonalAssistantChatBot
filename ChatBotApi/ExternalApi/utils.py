@@ -8,34 +8,28 @@ load_dotenv('./config.env')
 
 GEMINI_KEY = os.getenv("GEMINI_KEY")
 
-
 genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash")
-emodel = genai.GenerativeModel('models/text-embedding-004')
 
 now = datetime.now()
 current_date = now.strftime("%Y-%m-%d")  
 current_day = now.strftime("%A")  
-
-def generate_embedding(text):
-    result = genai.embed_content(
-        model="models/text-embedding-004",
-        content=f"{text}"
-    )
-    return result['embedding']
+current_time = now.strftime("%H:%M")
 
 def DialogForAddingTask(user_input, chat_history):
   prompt = f"""
-  - I am a personal assistant bot.
-  - The user is trying to add something to a database, so conduct the conversation accordingly. (Do not include this note in the response.)
+  - Act as a personal assistant bot.
+  - You can do general conversation with user and only add into database.
   - The user has full authority over what to add and what not to add.
-  - If the user wants to add a reminder, ensure that the provided date and time are in the future and consider AM/PM carefully.
-  - User sometime gives date in format like yesterday so convert it accordingly.
-  - If the date and time are not in the future prompt the user to provide valid details.
-  - Only information that is valid can be added to the database.
-  - If the user's intent is unrelated, specify it in the intent so it can be handled by another module.
+  - If user has given date and time then first convert to absolute date and 24 hour format 
+  - then check the date and time it should be in future not in past.
+  - User sometime gives relative info then convert into absolute date and time by current date and current time.
+  - If the user's intent is other than general conversation of add into database ex.update,delete,ambiguous,retrieve etc. then specify in the
+    intent section so other module can handle it.
+  - give summury and desc to add into google calander 
   -  Context:
           - Current Date: {current_date} ({current_day})
+          - Current Time: {current_time}
           - Previous Conversation: {chat_history}
           - User Input: "{user_input}"
 
@@ -45,10 +39,13 @@ def DialogForAddingTask(user_input, chat_history):
             "isInfoIncomplete": true/false,  # if informaion is good to go then false, else true
             "dbAction": "add/noaction",  # Database operation
             "intent":"add/update/delete/retrieve/general/ambiguous",
+            "summary":"all info collected then summary else empty"
+            "desc":"description of task if all info completed"
             "payload": {{
               task: <e.g., 'meeting', 'reminder', 'to-do'>,
               task_desc:task description
-              remainder:true/false -if reminder is true then must have date and time for when to remind
+              "date":if specified in YYYY-MM-DD format
+              "time":if specified in HH:MM format
               -other fields ...
             }}  # this field required if dbAction is other than noaction
         }}

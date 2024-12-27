@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from firebase.utils import insertTask, retriveAllTask, updateTask, deleteTask
-from ExternalApis.utils import (
+from calendarApi.utils import create_event
+from firebase.utils1 import insertTask, retriveAllTask, updateTask, deleteTask
+from ExternalApi.utils import (
     DialogForAddingTask, DialogForRetrivingTask, DialogForUpdatingTask,
     intentClassification, DialogForDeletingTask
 )
@@ -19,6 +20,7 @@ class QueryInput(BaseModel):
     chat_history: str
     stage: str
     email: str
+    accessToken:str
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,6 +41,7 @@ async def process_query(input: QueryInput):
     stage = input.stage
     history = input.chat_history
     email = input.email
+    accessToken = input.accessToken
     print(input)
     res = {'text': "sorry not able to fulfill your request now", 'intent': 'new'}
     if stage == 'new':
@@ -51,6 +54,10 @@ async def process_query(input: QueryInput):
     if stage == 'add':
         res = DialogForAddingTask(user_input, history)
         if res['dbAction'] == 'add' and not res['isInfoIncomplete']:
+            print(res)
+            if 'date' in res['payload'] and 'time' in res['payload']:
+                print('going create event')
+                await create_event(res,accessToken)
             info = await insertTask(email, res['payload'])
             res['intent'] = 'new'
             if info['code'] == 200:
