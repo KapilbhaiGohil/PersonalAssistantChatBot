@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from calendarApi.utils import create_event
 from firebase.utils1 import insertTask, retriveAllTask, updateTask, deleteTask
 from ExternalApi.utils import (
     DialogForAddingTask, DialogForRetrivingTask, DialogForUpdatingTask,
@@ -20,7 +19,6 @@ class QueryInput(BaseModel):
     chat_history: str
     stage: str
     email: str
-    accessToken:str
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,7 +39,6 @@ async def process_query(input: QueryInput):
     stage = input.stage
     history = input.chat_history
     email = input.email
-    accessToken = input.accessToken
     print(input)
     res = {'text': "sorry not able to fulfill your request now", 'intent': 'new'}
 
@@ -62,31 +59,6 @@ async def process_query(input: QueryInput):
         res = DialogForAddingTask(user_input, history)
         if res['dbAction'] == 'add' and not res['isInfoIncomplete']:
             print(res)
-            # Only provide end time if it's included in the payload
-            if 'date' in res['payload'] and 'time' in res['payload'] and 'enddate' in res['payload'] and 'endtime' in res['payload']:
-                print('Creating event...')
-                if 'date' in res['payload'] and 'time' in res['payload']:
-                    calanderRes = await create_event(
-                        accessToken,
-                        res['payload']['summary'],
-                        res['payload']['desc'],
-                        res['payload']['date'],
-                        res['payload']['time'],
-                        res['payload']['enddate'],
-                        res['payload']['endtime']
-                    )
-                elif 'date' in res['payload'] and 'time' in res['payload']:
-
-                    calanderRes = await create_event(
-                        accessToken,
-                        res['payload']['summary'],
-                        res['payload']['desc'],
-                        res['payload']['date'],
-                        res['payload']['time']
-                    )
-                if(calanderRes and calanderRes['status'] == 401):
-                    return returnRequest({msg:'access token expired.',code:401})
-
             info = await insertTask(email, res['payload'])
             res['intent'] = 'new'
             if info['code'] == 200:

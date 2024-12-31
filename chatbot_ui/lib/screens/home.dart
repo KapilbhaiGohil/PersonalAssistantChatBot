@@ -192,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _scrollToBottom();
         _messageController.clear();
       });
-      var data = await ChatAPI().sendMessageToApi(message, chatHistory, stage, email);
+      var data = await ChatAPI().sendMessageToApi(message, chatHistory, stage, email!);
       var apiResponse = data['text'];
       setState(() {
         chatHistory += '\nBot: $apiResponse';
