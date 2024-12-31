@@ -44,24 +44,56 @@ async def process_query(input: QueryInput):
     accessToken = input.accessToken
     print(input)
     res = {'text': "sorry not able to fulfill your request now", 'intent': 'new'}
+
     if stage == 'new':
         stage = intentClassification(user_input)['intent']
+
+
     print(stage)
+
+
     if stage == 'general' or stage == 'ambiguous':
         res = DialogForAddingTask(user_input, history)
         res['intent'] = 'new'
         return res
+
+
     if stage == 'add':
         res = DialogForAddingTask(user_input, history)
         if res['dbAction'] == 'add' and not res['isInfoIncomplete']:
             print(res)
-            if 'date' in res['payload'] and 'time' in res['payload']:
-                print('going create event')
-                await create_event(res,accessToken)
+            # Only provide end time if it's included in the payload
+            if 'date' in res['payload'] and 'time' in res['payload'] and 'enddate' in res['payload'] and 'endtime' in res['payload']:
+                print('Creating event...')
+                if 'date' in res['payload'] and 'time' in res['payload']:
+                    calanderRes = await create_event(
+                        accessToken,
+                        res['payload']['summary'],
+                        res['payload']['desc'],
+                        res['payload']['date'],
+                        res['payload']['time'],
+                        res['payload']['enddate'],
+                        res['payload']['endtime']
+                    )
+                elif 'date' in res['payload'] and 'time' in res['payload']:
+
+                    calanderRes = await create_event(
+                        accessToken,
+                        res['payload']['summary'],
+                        res['payload']['desc'],
+                        res['payload']['date'],
+                        res['payload']['time']
+                    )
+                if(calanderRes and calanderRes['status'] == 401):
+                    return returnRequest({msg:'access token expired.',code:401})
+
             info = await insertTask(email, res['payload'])
             res['intent'] = 'new'
             if info['code'] == 200:
                 return res
+
+
+
     elif stage == 'retrieve':
         info = await retriveAllTask(email)
         print(info)
@@ -88,5 +120,3 @@ async def process_query(input: QueryInput):
     else:
         print("error")
     return res
-
-

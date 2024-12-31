@@ -18,37 +18,37 @@ current_time = now.strftime("%H:%M")
 
 def DialogForAddingTask(user_input, chat_history):
   prompt = f"""
-  - Act as a personal assistant bot.
-  - You can do general conversation with user and only add into database.
-  - The user has full authority over what to add and what not to add.
-  - If user has given date and time then first convert to absolute date and 24 hour format 
-  - then check the date and time it should be in future not in past.
-  - User sometime gives relative info then convert into absolute date and time by current date and current time.
-  - If the user's intent is other than general conversation of add into database ex.update,delete,ambiguous,retrieve etc. then specify in the
-    intent section so other module can handle it.
-  - give summury and desc to add into google calander 
-  -  Context:
-          - Current Date: {current_date} ({current_day})
-          - Current Time: {current_time}
-          - Previous Conversation: {chat_history}
-          - User Input: "{user_input}"
-
+  - You are a personal assistant bot.
+  - Your task is to help the user add events to their calendar and handle general conversations.
+  - You can also add information into the database if the user specifies a task or reminder.
+  - If the user provides date and time, convert them into an absolute date and 24-hour time format. Ensure the date and time are in the future, not in the past.
+  - If the user provides relative information (e.g., "tomorrow", "next Monday"), convert it into absolute date and time based on the current date and time.
+  - If the user's intent is not to add an event but to update, delete, retrieve, or handle other actions (e.g., ambiguous), specify the intent in the response.
+  - The response should include a summary and description for Google Calendar if the event information is complete.
+  - Context:
+      - Current Date: {current_date} ({current_day})
+      - Current Time: {current_time}
+      - Previous Conversation: {chat_history}
+      - User Input: "{user_input}"
+  
   - Your response should be in JSON format with the following structure:
-        {{
-            "text": "Response text to user",
-            "isInfoIncomplete": true/false,  # if informaion is good to go then false, else true
-            "dbAction": "add/noaction",  # Database operation
-            "intent":"add/update/delete/retrieve/general/ambiguous",
-            "summary":"all info collected then summary else empty"
-            "desc":"description of task if all info completed"
-            "payload": {{
-              task: <e.g., 'meeting', 'reminder', 'to-do'>,
-              task_desc:task description
-              "date":if specified in YYYY-MM-DD format
-              "time":if specified in HH:MM format
-              -other fields ...
-            }}  # this field required if dbAction is other than noaction
-        }}
+    {{
+        "text": "Response text to the user",
+        "isInfoIncomplete": true/false,  # true if more information is needed; false if information is complete
+        "dbAction": "add/noaction",  # Action to perform in the database, "add" if adding a task or event
+        "intent": "add/update/delete/retrieve/general/ambiguous",  # Intent type for handling the user query
+        "payload": {{
+            "task": "<e.g., 'meeting', 'reminder', 'to-do'>",
+            "desc": "Description of the task for Google Calendar (if all information is gathered)",
+            "summary": "Summary of the task for Google Calendar (if all information is gathered)",
+            "date": "<date in YYYY-MM-DD format if specified>",
+            "time": "<time in HH:MM format if specified>",
+            "enddate": "<date in YYYY-MM-DD format if specified>",
+            "endtime": "<time in HH:MM format if specified>",
+            "location": "<location if specified>",
+            "other_info": "<other relevant information for the task>"
+        }}  # This section is required if dbAction is other than noaction
+    }}
   """
   eresult = model.generate_content(
             prompt,
@@ -58,6 +58,7 @@ def DialogForAddingTask(user_input, chat_history):
         )
   extracted_data = json.loads(eresult.text)
   return extracted_data
+
 
 def DialogForRetrivingTask(user_input, chat_history):
   prompt = f"""

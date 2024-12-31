@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:googleapis/calendar/v3.dart' as calendar;
+import 'package:chatbot_ui/services/api.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,12 +15,15 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final ChatAPI chatAPI = ChatAPI();
   bool _isLoading = false;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: [
-    'email',
-    calendar.CalendarApi.calendarScope,
-  ]);
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: [
+      'email',
+      calendar.CalendarApi.calendarScope,
+    ],
+  );
 
   Future<void> signInWithGoogle() async {
     if (!mounted) return;
@@ -29,30 +33,21 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      // Trigger Google Sign-In
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         throw Exception('Sign-in aborted by user.');
       }
 
+      // Obtain authentication details
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
+      // Sign in to Firebase
       final UserCredential userCredential = await _auth.signInWithCredential(credential);
-
-
-      final idToken = await userCredential.user?.getIdToken();
-      if (idToken != null) {
-        await _secureStorage.write(key: 'idToken', value: idToken);
-      }
-      final accessToken = googleAuth.accessToken;
-      if (accessToken != null) {
-        await _secureStorage.write(key: 'accessToken', value: accessToken);
-      }
-
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -61,10 +56,13 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-
+      // Handle errors
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text('Sign-in failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -75,7 +73,6 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
