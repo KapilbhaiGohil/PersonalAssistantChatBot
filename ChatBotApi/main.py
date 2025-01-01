@@ -1,18 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel
 from firebase.utils1 import insertTask, retriveAllTask, updateTask, deleteTask
-from ExternalApi.utils import (
+from GeminiAPI.utils import (
     DialogForAddingTask, DialogForRetrivingTask, DialogForUpdatingTask,
     intentClassification, DialogForDeletingTask
 )
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+import re
 
 app = FastAPI()
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
 
 class QueryInput(BaseModel):
     query: str
@@ -33,27 +30,32 @@ def returnRequest(res):
         return JSONResponse(content={"msg": res['msg'], "data": res['data']}, status_code=res['code'])
     return JSONResponse(content={"msg": res['msg']}, status_code=res['code'])
 
+# Extract the access token from the Authorization header
+def extract_access_token(authorization: str = Header(...)):
+    match = re.match(r"Bearer (\S+)", authorization)
+    if match:
+        return match.group(1)  # Returns the access token
+    raise HTTPException(status_code=400, detail="Invalid Authorization header format")
+
 @app.post("/chat")
-async def process_query(input: QueryInput):
+async def process_query(input: QueryInput, authorization: str = Depends(extract_access_token)):
     user_input = input.query
     stage = input.stage
     history = input.chat_history
     email = input.email
-    print(input)
+    access_token = authorization 
+    print(f"Access Token: {access_token}") 
     res = {'text': "sorry not able to fulfill your request now", 'intent': 'new'}
 
     if stage == 'new':
         stage = intentClassification(user_input)['intent']
 
-
     print(stage)
-
 
     if stage == 'general' or stage == 'ambiguous':
         res = DialogForAddingTask(user_input, history)
         res['intent'] = 'new'
         return res
-
 
     if stage == 'add':
         res = DialogForAddingTask(user_input, history)
@@ -64,14 +66,14 @@ async def process_query(input: QueryInput):
             if info['code'] == 200:
                 return res
 
-
-
     elif stage == 'retrieve':
         info = await retriveAllTask(email)
         print(info)
         history += f'\nDATARESULT:{info}'
         res = DialogForRetrivingTask(user_input, history)
         res['intent'] = 'new'
+
+
     elif stage == 'update':
         info = await retriveAllTask(email)
         history += f'\nDATARESULT:{info}'
@@ -79,6 +81,9 @@ async def process_query(input: QueryInput):
         if not res['isInfoIncomplete'] and res['dbAction'] == 'update':
             await updateTask(res['_id'], res['payload']['task'])
             res['intent'] = 'new'
+
+
+
     elif stage == 'delete':
         info = await retriveAllTask(email)
         history += f'\nDATARESULT:{info}'

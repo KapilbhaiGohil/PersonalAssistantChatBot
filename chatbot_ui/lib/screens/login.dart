@@ -51,10 +51,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Store the access token and expiry time
       String? accessToken = googleAuth.accessToken;
-      String expiryTime = DateTime.now().add(Duration(seconds: 3600)).toIso8601String(); // Tokens typically expire in 1 hour
+      String expiryTime = DateTime.now().add(Duration(seconds: 3600)).toIso8601String();
 
-      await _secureStorage.write(key: 'accessToken', value: accessToken);
-      await _secureStorage.write(key: 'accessTokenExpiry', value: expiryTime);
+      await _secureStorage.write(key: 'access_token', value: accessToken);
+      await _secureStorage.write(key: 'expiration_time', value: expiryTime);
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -79,23 +79,6 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
-  }
-
-  Future<void> _checkTokenExpiry() async {
-    // Get the stored access token and its expiry time
-    String? accessToken = await _secureStorage.read(key: 'accessToken');
-    String? accessTokenExpiry = await _secureStorage.read(key: 'accessTokenExpiry');
-
-    if (accessToken == null || accessTokenExpiry == null || _isAccessTokenExpired(accessTokenExpiry)) {
-      // If the token is expired or doesn't exist, you can trigger a re-authentication or refresh
-      print("Access token expired or doesn't exist. Please sign in again.");
-      await signInWithGoogle();
-    }
-  }
-
-  bool _isAccessTokenExpired(String expiryTime) {
-    DateTime expiryDateTime = DateTime.parse(expiryTime);
-    return DateTime.now().isAfter(expiryDateTime);
   }
 
   @override
