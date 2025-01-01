@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:googleapis/calendar/v3.dart' as calendar;
 import 'package:chatbot_ui/services/api.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -51,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Store the access token and expiry time
       String? accessToken = googleAuth.accessToken;
-      String expiryTime = DateTime.now().add(Duration(seconds: 3600)).toIso8601String();
+      String expiryTime = DateTime.now().add(const Duration(seconds: 3600)).toIso8601String();
 
       await _secureStorage.write(key: 'access_token', value: accessToken);
       await _secureStorage.write(key: 'expiration_time', value: expiryTime);

@@ -1,7 +1,6 @@
 from firebase_admin import credentials, firestore
 import firebase_admin
 
-# Initialize Firebase Admin SDK
 cred = credentials.Certificate('firebase/firebase-cred.json')
 app = firebase_admin.initialize_app(cred)
 db = firestore.client()
@@ -9,7 +8,6 @@ db = firestore.client()
 def get_tasks_collection(db):
     return db.collection('tasks')
 
-# Insert a task
 def insertTask(email: str, task: dict):
     if not email or not task:
         return {"msg": "Email and task are required", "code": 400}
@@ -24,7 +22,6 @@ def insertTask(email: str, task: dict):
     except Exception as e:
         return {"msg": f"Error inserting task: {str(e)}", "code": 500}
 
-# Retrieve all tasks for a user
 def retriveAllTask(email: str):
     if not email:
         return {"msg": "Email is required", "code": 400}
@@ -40,7 +37,6 @@ def retriveAllTask(email: str):
     
     return {"msg": "Tasks retrieved successfully", "code": 200, "data": task_list}
 
-# Update an existing task
 def updateTask(task_id: str, new_task: dict):
     if not task_id or not new_task:
         return {"msg": "Task ID and new task content are required", "code": 400}
@@ -52,7 +48,6 @@ def updateTask(task_id: str, new_task: dict):
     except Exception as e:
         return {"msg": f"Error updating task: {str(e)}", "code": 500}
 
-# Delete a task
 def deleteTask(task_id: str):
     if not task_id:
         return {"msg": "Task ID is required", "code": 400}

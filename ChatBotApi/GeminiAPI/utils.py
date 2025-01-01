@@ -25,6 +25,9 @@ def DialogForAddingTask(user_input, chat_history):
   - If the user provides relative information (e.g., "tomorrow", "next Monday"), convert it into absolute date and time based on the current date and time.
   - If the user's intent is not to add an event but to update, delete, retrieve, or handle other actions (e.g., ambiguous), specify the intent in the response.
   - The response should include a summary and description for Google Calendar if the event information is complete.
+  - If task time overlaps with existing task then notify user and take permission if user still wants to add it.
+  - if end date and time not provided then defalut will be +1 hour to start date and time
+
   - Context:
       - Current Date: {current_date} ({current_day})
       - Current Time: {current_time}
@@ -41,11 +44,11 @@ def DialogForAddingTask(user_input, chat_history):
             "task": "<e.g., 'meeting', 'reminder', 'to-do'>",
             "desc": "Description of the task for Google Calendar (if all information is gathered)",
             "summary": "Summary of the task for Google Calendar (if all information is gathered)",
-            "date": "<date in YYYY-MM-DD format if specified>",
-            "time": "<time in HH:MM format if specified>",
+            --optional fields
+            "startdate": "<date in YYYY-MM-DD format if specified>",
+            "starttime": "<time in HH:MM format if specified>",
             "enddate": "<date in YYYY-MM-DD format if specified>",
             "endtime": "<time in HH:MM format if specified>",
-            "location": "<location if specified>",
             "other_info": "<other relevant information for the task>"
         }}  # This section is required if dbAction is other than noaction
     }}

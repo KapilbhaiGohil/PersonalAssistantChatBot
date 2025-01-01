@@ -43,7 +43,6 @@ class ChatAPI {
     }
   }
 
-  // Method to send a message to your API
   Future<Map<String, dynamic>> sendMessageToApi(
       String message, chatHistory, stage, email) async {
     final String? accessToken = await getFreshAccessToken();
@@ -54,7 +53,7 @@ class ChatAPI {
     }
     final headers = {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $accessToken', // Pass the fresh access token
+      'Authorization': 'Bearer $accessToken',
     };
 
     var body = jsonEncode({
@@ -77,11 +76,10 @@ class ChatAPI {
     }
   }
 
-  // Method to sign out the user
   Future<void> _signOut() async {
     try {
-      await _auth.signOut(); // Sign out from Firebase
-      await _googleSignIn.signOut(); // Sign out from Google Sign-In
+      await _auth.signOut();
+      await _googleSignIn.signOut();
       print('User signed out successfully.');
     } catch (e) {
       print('Error signing out: $e');
