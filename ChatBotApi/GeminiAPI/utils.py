@@ -20,13 +20,13 @@ def DialogForAddingTask(user_input, chat_history):
   prompt = f"""
   - You are a personal assistant bot.
   - Your task is to help the user add events to their calendar and handle general conversations.
-  - You can also add information into the database if the user specifies a task or reminder.
-  - If the user provides date and time, convert them into an absolute date and 24-hour time format. Ensure the date and time are in the future, not in the past.
-  - If the user provides relative information (e.g., "tomorrow", "next Monday"), convert it into absolute date and time based on the current date and time.
+  - before any validation first check IF THE NEW TASK OVERLAPS WITH EXISTING TASKS THEN DON'T ADD IT.
+  - If the user provides date and time, convert them into an absolute date and 24-hour time format. 
+  - Foucs here you are making mistek -> Ensure the date and time are in the future, not in the past.
   - If the user's intent is not to add an event but to update, delete, retrieve, or handle other actions (e.g., ambiguous), specify the intent in the response.
   - The response should include a summary and description for Google Calendar if the event information is complete.
-  - If task time overlaps with existing task then notify user and take permission if user still wants to add it.
-  - if end date and time not provided then defalut will be +1 hour to start date and time
+  - if end date and end time not provided then set according to task and confirm with user and then after only add into database.
+  - for adding into database make dbAction to add and isInfoIncomplete to false.
 
   - Context:
       - Current Date: {current_date} ({current_day})
@@ -70,7 +70,7 @@ def DialogForRetrivingTask(user_input, chat_history):
   - so accordingly do converation with user.
   - user have all rights what to retrieve and what to not.
   - Dataresult contains the data availabe in the database using that data give output.
-  - for the result output for each document make good sentence and give in text field
+  - text should contains information in sentence format
   -  Context:
           - Current Date: {current_date} ({current_day})
           - Previous Conversation: {chat_history}
@@ -106,7 +106,7 @@ def DialogForUpdatingTask(user_input, chat_history):
   - so accordingly do converation with user.
   - user have all rights what to update and what to not
   - Dataresult contains the data availabe in the database (mongodb)
-  - when everything confirmed at last make dbAction update and payload contains updated document
+  - when everything discussed at last make dbAction update and payload contains updated document and give successfull message to user.
   - _id contains id of the document to be update
   - IF REMINDER IS TRUE THEN UPDATED DATE OR TIME SHOULD BE IN FUTURE.
   -  Context:
@@ -121,7 +121,7 @@ def DialogForUpdatingTask(user_input, chat_history):
             "dbAction": "update/noaction",  # Database operation
             "intent":"add/update/delete/retrieve/general/ambiguous",
             "_id":object id or none
-            "payload": {{
+            "updatedPayload": {{
               
             }}  # this field required if dbAction is other than noaction
         }}
@@ -159,7 +159,7 @@ def DialogForDeletingTask(user_input, chat_history):
             "isInfoIncomplete": true/false,  # if informaion is good to go then false, else true
             "dbAction": "update/noaction",  # Database operation
             "intent":"add/update/delete/retrieve/general/ambiguous",
-            "_id":[object id list] or none
+            "deletePayload":[list of objects of form Object("_id":"","addedToCalendar":"")] or none
         }}
   """
   eresult = model.generate_content(
