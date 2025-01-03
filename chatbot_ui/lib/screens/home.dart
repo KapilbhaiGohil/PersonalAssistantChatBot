@@ -196,7 +196,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       var apiResponse = data['text'];
       setState(() {
         chatHistory += '\nBot: $apiResponse';
-        stage = data['intent']!;
+        if(data['text']!=null){
+          stage = data['text'];
+        }else{
+          stage ='new';
+        }
         messages.add({
           'sender': 'api',
           'message': '$apiResponse',

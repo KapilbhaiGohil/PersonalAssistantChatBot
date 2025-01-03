@@ -56,15 +56,21 @@ async def retriveAllTask(email: str) -> Dict[str, Any]:
         return {"msg": f"Error retrieving tasks: {e}", "code": 500}
    
 
-async def updateTask(task_id: str, new_task: str) -> Dict[str, Any]:
+async def updateTask(task_id: str, new_task: str,newid=None) -> Dict[str, Any]:
     if not task_id or not new_task:
         return {"msg": "Task ID and new task content are required", "code": 400}
     
     try:
-        result = tasks_collection.update_one(
-            {"task_id": task_id},  
-            {"$set": {"task": new_task}} 
-        )
+        if newid:
+            result = tasks_collection.update_one(
+                {"task_id": task_id},  
+                {"$set": {"task": new_task,"task_id":newid}}
+            )
+        else:
+            result = tasks_collection.update_one(
+                {"task_id": task_id},  
+                {"$set": {"task": new_task}}
+            )
         
         if result.matched_count == 0:
             return {"msg": "Task not found", "code": 404}
