@@ -23,7 +23,6 @@ def generalDialog(user_input,chat_history):
     - can not do multiple task at a time.
     - based on user query you can do following actions
       - add task into the calendar (for this start dateTime and end dateTime required)
-      - add task into the database (simple task without any start datetime)
       - update specific task
       - delete specific task
     - current tasks of the user is given to you in chat history
@@ -32,11 +31,12 @@ def generalDialog(user_input,chat_history):
         - if user has provided start date and time then it must be of future not past. (current date and time provided to you).
         - if new task is overlapping with another task then don't add it.
         - if only start date time provided then ask user for providing end datetime.
+        - if user not want to give endtime then take 1 minute by default.
         - if start datetime not provided then don't add to calendar.
       - in case of updating task
         - if the updated event is added to calendar and update is on timing then updated timing must be in future with respect to current timing.
       - in case of deleting task
-        - take confirmation from user that the action can not be undone and specify task that you are going to delete.
+        - important -> take confirmation from user that the action can not be undone and specify task that you are going to delete.
     - if user wants to retrive task then give in setence format rather than json format.
     - for performing corrsponding action to database before response sended to user make dbAction = action to be performed and isInfoIncomplete = False.
     - Context:
@@ -85,14 +85,17 @@ def generalDialog(user_input,chat_history):
   extracted_data = json.loads(eresult.text)
   return extracted_data
 
-def conflictChecker(newTask,dataResult):
+def conflictChecker(newTask,dataResult,intent):
   prompt = f"""
-    - you are conflict checker and user wants to add task.
-    - you are given with list of task already and new added task.
-    - find conflit if any and inform user regarding it.
+    - you are conflict checker and user wants to add task/update task.
+    - you are given with list of task already added and new task/updated task that user wants to add/update.
+    - check precisely every minute is important.
+    - find conflit if any .
+    - ex. you want to add new meeting but it conflict with the another task.
     - Context
-      - newTask:{newTask}
+      - intent:{intent}
       - dataResult:{dataResult}
+      - newTask/updatedTask:{newTask}
     - Output response
     {{
       "isConflict":true/false

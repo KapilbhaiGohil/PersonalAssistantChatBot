@@ -17,7 +17,7 @@ def create_google_calendar_event(access_token, summary, description, start_date,
         start_str = f"{start_date}T{start_time}:00"
         start_time_obj = datetime.strptime(start_str, '%Y-%m-%dT%H:%M:%S')
         
-        india_tz = pytz.timezone('UTC')
+        india_tz = pytz.timezone('Asia/Kolkata')
 
         start_time_obj = india_tz.localize(start_time_obj) if start_time_obj.tzinfo is None else start_time_obj.astimezone(india_tz)
         print(start_time_obj)
