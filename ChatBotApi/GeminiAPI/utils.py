@@ -83,6 +83,7 @@ def generalDialog(user_input,chat_history):
             ),
         )
   extracted_data = json.loads(eresult.text)
+  print(extracted_data)
   return extracted_data
 
 def conflictChecker(newTask,dataResult,intent):
@@ -108,5 +109,8 @@ def conflictChecker(newTask,dataResult,intent):
                 response_mime_type="application/json"
             ),
         )
+  
   extracted_data = json.loads(eresult.text)
+  print(extracted_data)
+
   return extracted_data

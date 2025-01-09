@@ -76,6 +76,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  void _clearHistory() {
+    setState(() {
+      messages.clear();
+      chatHistory = '';
+      stage = 'new';
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -91,6 +99,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
             onPressed: _toggleMenu,
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: _clearHistory,
+              tooltip: 'Clear History',
+            ),
+          ],
         ),
         backgroundColor: AppColors.scaffoldBackgroundColor,
         body: Stack(
@@ -196,10 +211,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       var apiResponse = data['text'];
       setState(() {
         chatHistory += '\nBot: $apiResponse';
-        if(data['text']!=null){
+        if (data['text'] != null) {
           stage = data['text'];
-        }else{
-          stage ='new';
+        } else {
+          stage = 'new';
         }
         messages.add({
           'sender': 'api',

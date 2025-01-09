@@ -42,6 +42,7 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
     history += f'\nDATARESULT:{info}'
     res = generalDialog(user_input,history)
     print(info)
+    print(history)
     if not res['isInfoIncomplete']:
         if res['dbAction'] == 'add':
             payload = res['payload']
@@ -69,7 +70,7 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
                     return res
         elif res['dbAction'] == 'update':
             payload = res['payload']['updatedPayload']['task']
-            print(payload)
+            print("-----------------------------------------------------------------------\n",res)
             if(payload['addedToCalendar']):
                 info = [obj for obj in info if obj['task_id'] != res['payload']['updatedPayload']['task_id']] 
                 res2 = conflictChecker(payload,info,'update')

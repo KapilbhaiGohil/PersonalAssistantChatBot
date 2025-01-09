@@ -88,7 +88,7 @@ def update_google_calendar_event(access_token, event_id, summary=None, descripti
             print('Failed to get access token')
             return {'success': False, 'message': 'Failed to get access token'}
 
-        india_tz = pytz.timezone('UTC')
+        india_tz = pytz.timezone('Asia/Kolkata')
 
         event = {}
 
@@ -178,63 +178,3 @@ def delete_google_calendar_event(access_token, event_id):
             'success': False,
             'message': f'Error deleting event: {e}'
         }
-
-# def create_google_calendar_task(access_token, summary, description, due_date=None, due_time=None):
-#     try:
-#         if not access_token:
-#             print('Failed to get access token')
-#             return {'success': False, 'message': 'Failed to get access token'}
-
-#         task = {
-#             'summary': summary,
-#             'description': description,
-#         }
-
-#         if due_date:
-#             due_date_obj = datetime.strptime(due_date, '%Y-%m-%d')
-#             india_tz = pytz.timezone('Asia/Kolkata')
-#             due_date_obj = india_tz.localize(due_date_obj)
-
-#             if due_time:
-#                 due_time_obj = datetime.strptime(due_time, '%H:%M')
-#                 due_date_obj = due_date_obj.replace(hour=due_time_obj.hour, minute=due_time_obj.minute, second=0)
-
-#             task['due'] = due_date_obj.isoformat()
-
-#         headers = {
-#             'Authorization': f'Bearer {access_token}',
-#             'Content-Type': 'application/json',
-#         }
-
-#         response = requests.post(
-#             'https://www.googleapis.com/tasks/v1/lists/@default/tasks',
-#             headers=headers,
-#             data=json.dumps(task),
-#         )
-
-#         if response.status_code == 200:
-#             task_data = response.json()  
-#             print('Task created successfully')
-#             return {
-#                 'success': True,
-#                 'message': 'Task created successfully',
-#                 'task_id': task_data.get('id'),
-#                 'summary': task_data.get('summary'),
-#                 'description': task_data.get('description'),
-#                 'due_date': task_data.get('due'),
-#                 'task_data': task_data
-#             }
-#         else:
-#             print(f'Failed to create task: {response.status_code}')
-#             print(response.text)
-#             return {
-#                 'success': False,
-#                 'message': f'Failed to create task: {response.status_code}',
-#                 'response': response.text
-#             }
-#     except Exception as e:
-#         print(f'Error creating Google Calendar task: {e}')
-#         return {
-#             'success': False,
-#             'message': f'Error creating task: {e}'
-#         }
