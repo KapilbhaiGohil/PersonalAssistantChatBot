@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:chatbot_ui/utils/colors.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/api.dart';
