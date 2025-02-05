@@ -29,10 +29,8 @@ def generalDialog(user_input,chat_history):
     - Some important instruction to follow:
       - in case of adding task
         - if user has provided start date and time then it must be of future not past. (current date and time provided to you).
-        - if new task is overlapping with another task then don't add it.
         - if only start date time provided then ask user for providing end datetime.
         - if user not want to give endtime then take 1 minute by default.
-        - if start datetime not provided then don't add to calendar.
       - in case of updating task
         - if the updated event is added to calendar and update is on timing then updated timing must be in future with respect to current timing.
       - in case of deleting task
@@ -61,6 +59,7 @@ def generalDialog(user_input,chat_history):
               "starttime": "<time in HH:MM format if specified>",
               "enddate": "<date in YYYY-MM-DD format if specified>",
               "endtime": "<time in HH:MM format if specified>",
+              "daily":"daily event true / false"
               "other_info": "<other relevant information for the task>"
 
             - for updating task it should have following structure.

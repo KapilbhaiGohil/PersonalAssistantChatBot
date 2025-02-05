@@ -1,3 +1,5 @@
+import 'package:chatbot_ui/screens/notificationTest.dart';
+import 'package:chatbot_ui/services/notification.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +9,11 @@ import 'package:chatbot_ui/utils/theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // Initialize Firebase
+  await Firebase.initializeApp();
+
+  final notificationService = NotificationService();
+  await notificationService.initNotifications();
+
   runApp(const MyApp());
 }
 
@@ -27,7 +33,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -42,7 +47,7 @@ class AuthWrapper extends StatelessWidget {
           );
         }
         if (snapshot.hasData) {
-          return const HomeScreen();
+          return TestNotificationScreen();
         }
         return const LoginScreen();
       },

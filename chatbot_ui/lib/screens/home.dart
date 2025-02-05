@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:chatbot_ui/utils/colors.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/api.dart';
+import '../services/notification.dart';
 import '../widgets/utils.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,6 +18,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   String chatHistory = '';
   String stage = 'new';
   List<Map<String, String>> messages = [];
@@ -66,6 +69,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Future<void> _signOut() async {
     try {
+      await _secureStorage.delete(key: 'access_token');
+      await _secureStorage.delete(key: 'expiration_time');
       await FirebaseAuth.instance.signOut();
       await _googleSignIn.signOut();
     } catch (e) {

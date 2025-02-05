@@ -1,14 +1,9 @@
 import json
 import requests
-from datetime import datetime
-import pytz
-
 from datetime import datetime, timedelta
 import pytz
-import json
-import requests
 
-def create_google_calendar_event(access_token, summary, description, start_date, start_time, end_date=None, end_time=None):
+def create_google_calendar_event(access_token, summary, description, start_date, start_time, end_date=None, end_time=None, daily=False):
     try:
         if not access_token:
             print('Failed to get access token')
@@ -18,16 +13,14 @@ def create_google_calendar_event(access_token, summary, description, start_date,
         start_time_obj = datetime.strptime(start_str, '%Y-%m-%dT%H:%M:%S')
         
         india_tz = pytz.timezone('Asia/Kolkata')
-
         start_time_obj = india_tz.localize(start_time_obj) if start_time_obj.tzinfo is None else start_time_obj.astimezone(india_tz)
-        print(start_time_obj)
-
+        
         event = {
             'summary': summary,
             'description': description,
             'start': {
                 'dateTime': start_time_obj.isoformat(),
-                'timeZone': 'Asia/Kolkata', 
+                'timeZone': 'Asia/Kolkata',
             },
         }
 
@@ -36,12 +29,24 @@ def create_google_calendar_event(access_token, summary, description, start_date,
         else:
             end_str = f"{end_date}T{end_time}:00"
             end_time_obj = datetime.strptime(end_str, '%Y-%m-%dT%H:%M:%S')
-
             end_time_obj = india_tz.localize(end_time_obj) if end_time_obj.tzinfo is None else end_time_obj.astimezone(india_tz)
 
         event['end'] = {
             'dateTime': end_time_obj.isoformat(),
-            'timeZone': 'Asia/Kolkata',  
+            'timeZone': 'Asia/Kolkata',
+        }
+
+        if daily:
+            event['recurrence'] = ["RRULE:FREQ=DAILY"]
+
+        event['reminders'] = {
+            'useDefault': False,
+            'overrides': [
+                {
+                    'method': 'popup',
+                    'minutes': 5
+                }
+            ]
         }
 
         headers = {
@@ -81,8 +86,7 @@ def create_google_calendar_event(access_token, summary, description, start_date,
             'success': False,
             'message': f'Error creating event: {e}'
         }
-
-def update_google_calendar_event(access_token, event_id, summary=None, description=None, start_date=None, start_time=None, end_date=None, end_time=None):
+def update_google_calendar_event(access_token, event_id, summary=None, description=None, start_date=None, start_time=None, end_date=None, end_time=None, daily=False):
     try:
         if not access_token:
             print('Failed to get access token')
@@ -114,6 +118,11 @@ def update_google_calendar_event(access_token, event_id, summary=None, descripti
                 'dateTime': end_time_obj.isoformat(),
                 'timeZone': 'Asia/Kolkata',
             }
+        if daily:
+            event['recurrence'] = ["RRULE:FREQ=DAILY"]
+        else:
+            event['recurrence'] = []
+
 
         headers = {
             'Authorization': f'Bearer {access_token}',
@@ -145,6 +154,7 @@ def update_google_calendar_event(access_token, event_id, summary=None, descripti
             'success': False,
             'message': f'Error updating event: {e}'
         }
+
 
 def delete_google_calendar_event(access_token, event_id):
     try:
