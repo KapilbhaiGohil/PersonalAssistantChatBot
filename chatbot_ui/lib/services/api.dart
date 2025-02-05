@@ -1,8 +1,10 @@
 import 'dart:convert';
 
+import 'package:chatbot_ui/services/notification.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:googleapis/authorizedbuyersmarketplace/v1.dart';
 import 'package:http/http.dart' as http;
 
 class ChatAPI {
@@ -10,7 +12,7 @@ class ChatAPI {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final GoogleSignIn _googleSignIn = GoogleSignIn();
-
+  final notificationService = NotificationService();
   Future<String?> getFreshAccessToken() async {
     try {
       final String? accessToken = await _secureStorage.read(key: 'access_token');
@@ -66,12 +68,50 @@ class ChatAPI {
     try {
       final response = await http.post(Uri.parse('$apiUrl/chat'), headers: headers, body: body);
       if (response.statusCode == 200) {
+
         final data = json.decode(response.body);
+        print(data);
+        if (data['nInfo'] != null) {
+          final nInfo = data['nInfo'];
+
+          if (nInfo['delete'] != null && nInfo['delete'] is List) {
+            for (var id in nInfo['delete']) {
+              if (id != null && id is String) {
+                await NotificationService().cancelNotification(id);
+              }
+            }
+          } else {
+            String? taskId = nInfo['task_id'] as String?;
+            String title = data['payload']['summary'] as String? ?? "Scheduled Task";
+            String body = data['payload']['desc'] as String? ?? "You have a scheduled event.";
+            String? startDate = nInfo['startdate'] as String?;
+            String? startTime = nInfo['starttime'] as String?;
+            // Check for null values before proceeding
+            if (taskId != null && startDate != null && startTime != null) {
+              DateTime scheduledTime = DateTime.parse('$startDate $startTime:00');
+              if(data['payload']['daily']!= null && data['payload']['daily']==true){
+                TimeOfDay scheduledTimeOfDay = TimeOfDay(
+                  hours: scheduledTime.hour,
+                  minutes: scheduledTime.minute,
+                );
+                await notificationService.scheduleDailyNotification(eventId: taskId, title: title, body: body, timeOfDay: scheduledTimeOfDay);
+              }else{
+                await notificationService.scheduleNotification(
+                  eventId: taskId,
+                  title: title,
+                  body: body,
+                  scheduledTime: scheduledTime,
+                );
+              }
+            }
+          }
+        }
         return data;
       } else {
         return {'text': "Error during API request"};
       }
     } catch (e) {
+      print(e);
       return {'text': "Error during API request"};
     }
   }

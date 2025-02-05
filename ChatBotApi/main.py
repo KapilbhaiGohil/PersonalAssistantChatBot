@@ -45,13 +45,14 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
         info = await retriveAllTask(email)
         tasks = info.get('data', []) if isinstance(info, dict) else []
         history += f'\nDATARESULT:{tasks}'
-        
+
         response = generalDialog(user_input, history)
+        response["nInfo"] = response.get("nInfo", {})  # Ensure nInfo exists in response
         logger.info(f"Generated Response: {response}")
 
         if not response.get('isInfoIncomplete'):
             db_action = response.get('dbAction')
-            
+
             if db_action == 'add':
                 payload = response.get('payload', {})
                 if all(k in payload for k in ['startdate', 'starttime', 'enddate', 'endtime']):
@@ -68,19 +69,28 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
                             payload.get('daily', False)
                         )
                         payload['addedToCalendar'] = True
-                        await insertTask(email, payload, event_info.get('id'))
+                        temp = await insertTask(email, payload, event_info.get('id'))
                     else:
                         return conflict_check
                 else:
                     payload['addedToCalendar'] = False
-                    await insertTask(email, payload)
+                    temp = await insertTask(email, payload)
+
+                response['nInfo'].update({
+                    'task_id': temp['task_id'],
+                    'startdate': payload.get('startdate'),
+                    'starttime': payload.get('starttime'),
+                    'enddate': payload.get('enddate'),
+                    'endtime': payload.get('endtime')
+                })
+
                 response['intent'] = 'new'
 
             elif db_action == 'update':
                 updated_payload = response.get('payload', {}).get('updatedPayload', {}).get('task', {})
-                task_id = response.get('payload', {}).get('updatedPayload', {}).get('task_id', None)
-                
-                if updated_payload.get('addedToCalendar'):
+                task_id = response.get('payload', {}).get('updatedPayload', {}).get('task_id')
+
+                if updated_payload.get('addedToCalendar') and task_id:
                     tasks = [t for t in tasks if t.get('task_id') != task_id]
                     conflict_check = conflictChecker(updated_payload, tasks, 'update')
                     
@@ -111,16 +121,28 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
                             )
                     else:
                         return conflict_check
+                
                 await updateTask(task_id, updated_payload, task_id)
+
+                response['nInfo'].update({
+                    'task_id': task_id,
+                    'startdate': updated_payload.get('startdate'),
+                    'starttime': updated_payload.get('starttime'),
+                    'enddate': updated_payload.get('enddate'),
+                    'endtime': updated_payload.get('endtime')
+                })
                 response['intent'] = 'new'
 
             elif db_action == 'delete':
                 delete_payload = response.get('payload', {}).get('deletePayload', [])
+                response['nInfo']['delete'] = []
                 for obj in delete_payload:
                     if obj.get('addedToCalendar'):
                         delete_google_calendar_event(access_token, obj.get('_id'))
                     await deleteTask(obj.get('_id'))
+                    response['nInfo']['delete'].append(obj.get('_id'))
                 response['intent'] = 'new'
+
         return response
     except Exception as e:
         logger.error(f"Unexpected error: {e}")

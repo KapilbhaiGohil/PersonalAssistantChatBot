@@ -24,7 +24,7 @@ class TestNotificationScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: () async {
                 await _notificationService.scheduleNotification(
-                  id: 1,
+                  eventId: "djkf",
                   title: 'Scheduled Test',
                   body: 'This will appear in 5 seconds!',
                   scheduledTime: DateTime.now().add(const Duration(seconds: 5)),
