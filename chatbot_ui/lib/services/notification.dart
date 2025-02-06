@@ -13,181 +13,170 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-  FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
 
   NotificationService._internal();
 
-  /// Initialize notifications
   Future<void> initNotifications() async {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const InitializationSettings initializationSettings =
-    InitializationSettings(android: initializationSettingsAndroid);
-
-    await flutterLocalNotificationsPlugin.initialize(
+    print("Initializing notifications...");
+    const initializationSettings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    );
+    await _notificationsPlugin.initialize(
       initializationSettings,
-      onDidReceiveNotificationResponse: onSelectNotification,
+      onDidReceiveNotificationResponse: _onSelectNotification,
     );
-
     tz.initializeTimeZones();
+    if (Platform.isAndroid) await _requestExactAlarmPermission();
+  }
 
-    if (Platform.isAndroid) {
-      await requestExactAlarmPermission();
+  Future<void> _onSelectNotification(NotificationResponse response) async {
+    print("Notification clicked: ${response.actionId}");
+
+    if (response.payload == null) {
+      print("No payload received.");
+      return;
+    }
+
+    final data = jsonDecode(response.payload!);
+    final eventId = data['eventId'];
+
+    print("Processing notification for eventId: $eventId");
+
+    switch (response.actionId) {
+      case 'action_ok':
+        print("User clicked OK, cancelling notification.");
+        await cancelNotification(eventId);
+        break;
+      case 'action_remind_later':
+        print("User clicked Remind Me Later, rescheduling.");
+        await _rescheduleNotification(data, 10);
+        break;
+      default:
+        print("Unknown action: ${response.actionId}");
     }
   }
 
-  /// Handle notification selection
-  Future<void> onSelectNotification(NotificationResponse response) async {
-    if (response.payload != null) {
-      // Decode the payload to extract data
-      final Map<String, dynamic> payloadData = jsonDecode(response.payload!);
-      String eventId = payloadData['eventId'];
-      String title = payloadData['title'];
-      String body = payloadData['body'];
 
-      if (response.actionId == 'action_ok') {
-        // Handle the "OK" button click: Cancel the notification
-        print("OK button clicked.");
-        await cancelNotification(eventId); // Cancel the notification
-      } else if (response.actionId == 'action_remind_later' || response.input == null) {
-        // Handle the "Remind me later" button click: Reschedule the notification after 10 minutes
-        print("Remind me later clicked or notification swiped away.");
-        await rescheduleNotification(eventId, title, body, 10);
-      }
-    }
-  }
-
-  /// Reschedule the notification after the specified delay (in minutes)
-  Future<void> rescheduleNotification(
-      String eventId, String title, String body, int delayMinutes) async {
-    // Calculate the new scheduled time by adding the delay
-    DateTime newScheduledTime = DateTime.now().add(Duration(minutes: delayMinutes));
-
-    // Reschedule the notification
+  Future<void> _rescheduleNotification(Map<String, dynamic> data, int minutes) async {
+    final scheduledTime = DateTime.now().add(Duration(seconds: 3));
+    print("Rescheduling notification for eventId: ${data['eventId']} at $scheduledTime");
     await scheduleNotification(
-      eventId: eventId,
-      title: title,
-      body: body,
-      scheduledTime: newScheduledTime,
+      eventId: data['eventId'],
+      title: data['title'],
+      body: data['body'],
+      scheduledTime: scheduledTime,
     );
-
-    print("Notification rescheduled for $delayMinutes minutes later at $newScheduledTime");
   }
 
-  /// Generate a stable 32-bit integer ID from a string using SHA-256
-  int generateNotificationId(String input) {
-    var bytes = utf8.encode(input);
-    var digest = sha256.convert(bytes);
-    int id = digest.bytes.sublist(0, 4).fold(0, (a, b) => (a << 8) | b);
-
-    // Ensure the id fits within a 32-bit integer range.
-    return id & 0x7FFFFFFF; // This ensures it is within the range of a 32-bit unsigned integer.
+  int _generateNotificationId(String input) {
+    final id = sha256
+        .convert(utf8.encode(input))
+        .bytes
+        .sublist(0, 4)
+        .fold(0, (a, b) => (a << 8) | b) & 0x7FFFFFFF;
+    print("Generated notification ID: $id for input: $input");
+    return id;
   }
 
-  /// Show an instant notification with two action buttons: OK and Remind me later
-  Future<void> showInstantNotification() async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+  Future<void> _showNotification({required String title, required String body, required String payload}) async {
+    print("Showing notification: $title");
+    await _notificationsPlugin.show(
+      0,
+      title,
+      body,
+      NotificationDetails(android: _androidDetails()),
+      payload: payload,
+    );
+  }
+
+  AndroidNotificationDetails _androidDetails() {
+    return const AndroidNotificationDetails(
       'scheduled_channel_id',
-      'Instant Notifications',
-      channelDescription: 'Channel for instant notifications',
+      'Notifications',
+      channelDescription: 'General notifications',
       importance: Importance.max,
       priority: Priority.high,
+      autoCancel: true,
       actions: [
         AndroidNotificationAction(
           'action_ok',
           'OK',
-          showsUserInterface: true
+          showsUserInterface: true,
         ),
         AndroidNotificationAction(
           'action_remind_later',
-          'Remind me 10 min later',
-          showsUserInterface: true
+          'Remind me later',
+          showsUserInterface: true,
         ),
       ],
     );
+  }
 
-    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
-
-    await flutterLocalNotificationsPlugin.show(
-      0,
-      'Instant Notification',
-      'This is an instant notification with options!',
-      platformDetails,
-      payload: 'Instant Payload',
+  Future<void> showInstantNotification() async {
+    print("Showing instant notification");
+    await _showNotification(
+      title: 'Instant Notification',
+      body: 'This is an instant notification with options!',
+      payload: jsonEncode({'eventId': 'instant', 'title': 'Instant Notification', 'body': 'This is an instant notification with options!'}),
     );
   }
 
-  /// Schedule a notification at a specific time with two action buttons
   Future<void> scheduleNotification({
     required String eventId,
     required String title,
     required String body,
     required DateTime scheduledTime,
   }) async {
-    final int id = generateNotificationId(eventId);
-    final tz.TZDateTime tzScheduledTime = tz.TZDateTime.from(scheduledTime, tz.local);
-
-    // Create a map to hold the necessary details for rescheduling
-    final Map<String, dynamic> notificationData = {
-      'eventId': eventId,
-      'title': title,
-      'body': body,
-      'scheduledTime': scheduledTime.toIso8601String(), // Store the scheduled time in ISO format
-    };
-
-    // Convert the map to a JSON string
-    final String payload = jsonEncode(notificationData);
-
-    // Define action buttons for Android
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'scheduled_channel_id',
-      'Scheduled Notifications',
-      channelDescription: 'Channel for scheduled notifications',
-      importance: Importance.max,
-      priority: Priority.high,
-      actions: [
-        AndroidNotificationAction(
-          'action_ok',
-          'OK',
-            showsUserInterface: true
-        ),
-        AndroidNotificationAction(
-          'action_remind_later',
-          'Remind me later',
-            showsUserInterface: true
-        ),
-      ],
-    );
-
-    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
-
-    await flutterLocalNotificationsPlugin.zonedSchedule(
+    final id = _generateNotificationId(eventId);
+    print("Scheduling notification for eventId: $eventId at $scheduledTime");
+    await _notificationsPlugin.zonedSchedule(
       id,
       title,
       body,
-      tzScheduledTime,
-      platformDetails,
+      tz.TZDateTime.from(scheduledTime, tz.local),
+      NotificationDetails(android: _androidDetails()),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      payload: payload, // Use the JSON string as the payload
+      payload: jsonEncode({
+        'eventId': eventId,
+        'title': title,
+        'body': body,
+        'scheduledTime': scheduledTime.toIso8601String(),
+      }),
     );
-
-    print("Notification scheduled at $scheduledTime");
   }
 
-  /// Schedule a repeating daily notification with two action buttons
+  Future<void> cancelNotification(String eventId) async {
+    final id = _generateNotificationId(eventId);
+    print("Cancelling notification with ID: $id");
+    await _notificationsPlugin.cancel(id);
+  }
+
+  Future<void> cancelAllNotifications() async {
+    print("Cancelling all notifications");
+    await _notificationsPlugin.cancelAll();
+  }
+
+  Future<void> _requestExactAlarmPermission() async {
+    if (Platform.isAndroid && await _isAndroid12OrHigher()) {
+      print("Requesting exact alarm permission");
+      const intent = AndroidIntent(
+        action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
+        flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
+      );
+      await intent.launch();
+    }
+  }
+
   Future<void> scheduleDailyNotification({
     required String eventId,
     required String title,
     required String body,
     required TimeOfDay timeOfDay,
   }) async {
-    final int id = generateNotificationId(eventId);
-
-    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-    tz.TZDateTime scheduledDate = tz.TZDateTime(
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduledTime = tz.TZDateTime(
       tz.local,
       now.year,
       now.month,
@@ -195,96 +184,36 @@ class NotificationService {
       timeOfDay.hours ?? 0,
       timeOfDay.minutes ?? 0,
     );
-
-    // If the scheduled time is already passed today, schedule for tomorrow
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    // If the scheduled time is before now, schedule for tomorrow.
+    if (scheduledTime.isBefore(now)) {
+      scheduledTime = scheduledTime.add(const Duration(days: 1));
     }
-
-    // Create a map to hold the necessary details for rescheduling
-    final Map<String, dynamic> notificationData = {
-      'eventId': eventId,
-      'title': title,
-      'body': body,
-      'scheduledTime': scheduledDate.toIso8601String(), // Store the scheduled time in ISO format
-    };
-
-    // Convert the map to a JSON string
-    final String payload = jsonEncode(notificationData);
-
-    // Define action buttons for Android
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'scheduled_channel_id',
-      'Daily Notifications',
-      channelDescription: 'Channel for daily notifications',
-      importance: Importance.max,
-      priority: Priority.high,
-      actions: [
-        AndroidNotificationAction(
-          'action_ok',
-          'OK',
-            showsUserInterface: true
-        ),
-        AndroidNotificationAction(
-          'action_remind_later',
-          'Remind me later',
-            showsUserInterface: true
-        ),
-      ],
-    );
-
-    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
-
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
+    print("Scheduling daily notification for eventId: $eventId at $scheduledTime");
+    await _notificationsPlugin.zonedSchedule(
+      _generateNotificationId(eventId),
       title,
       body,
-      scheduledDate,
-      platformDetails,
-      matchDateTimeComponents: DateTimeComponents.time, // Repeat daily
+      scheduledTime,
+      NotificationDetails(android: _androidDetails()),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
-      payload: payload, // Use the JSON string as the payload
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time, // Repeat daily at the same time
+      payload: jsonEncode({
+        'eventId': eventId,
+        'title': title,
+        'body': body,
+        'scheduledTime': scheduledTime.toIso8601String(),
+      }),
     );
-
-    print("Daily notification scheduled at $scheduledDate");
   }
 
-  /// Cancel a specific notification
-  Future<void> cancelNotification(String eventId) async {
-    int id = generateNotificationId(eventId);
-    await flutterLocalNotificationsPlugin.cancel(id);
-  }
-
-  /// Cancel all notifications
-  Future<void> cancelAllNotifications() async {
-    await flutterLocalNotificationsPlugin.cancelAll();
-  }
-
-  /// Request Exact Alarm Permission (Android 12+)
-  Future<void> requestExactAlarmPermission() async {
-    try {
-      if (Platform.isAndroid && (await _isAndroid12OrHigher())) {
-        const AndroidIntent intent = AndroidIntent(
-          action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
-          flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
-        );
-        await intent.launch();
-      }
-    } catch (e) {
-      print('❌ Error requesting exact alarm permission: $e');
-    }
-  }
-
-  /// Check if the Android version is 12 (API 31) or higher
   Future<bool> _isAndroid12OrHigher() async {
     try {
-      final int sdkInt = await const MethodChannel('flutter/device_info')
-          .invokeMethod<int>('getSdkInt') ??
-          0;
+      final int sdkInt = await const MethodChannel('flutter/device_info').invokeMethod<int>('getSdkInt') ?? 0;
+      print("Android SDK version: $sdkInt");
       return sdkInt >= 31;
     } catch (e) {
+      print("Error checking Android version: $e");
       return false;
     }
   }
