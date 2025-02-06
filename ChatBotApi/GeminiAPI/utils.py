@@ -85,21 +85,55 @@ def generalDialog(user_input,chat_history):
   print(extracted_data)
   return extracted_data
 
+def messageGenerator(Task):
+  prompt = f"""
+    # you are message provide which is creative and beautifull to the given task.
+    - give title and body as a output.
+
+    - Context
+      - Task : {Task}
+
+    - Output response
+    {{
+      "title":"should contains title of notification given to user."
+      "body":"should contains the body of notification given to user."
+    }}
+  """
+  eresult = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json"
+            ),
+        )
+  
+  extracted_data = json.loads(eresult.text)
+  return extracted_data
+
 def conflictChecker(newTask,dataResult,intent):
   prompt = f"""
-    - you are conflict checker and user wants to add task/update task.
+    # first task : you are conflict checker and user wants to add task/update task.
     - you are given with list of task already added and new task/updated task that user wants to add/update.
     - check precisely every minute is important.
     - find conflit if any .
     - ex. you want to add new meeting but it conflict with the another task.
+
+    # second task : you are message provide which is creative and beautifull to the given task.
+    - give title and body as a output.
+
     - Context
       - intent:{intent}
       - dataResult:{dataResult}
       - newTask/updatedTask:{newTask}
     - Output response
     {{
+      
       "isConflict":true/false
       "text":response to user which gives information which tasks are overlapping
+      
+      # second task
+      "title":"should contains title of notification given to user." eg. Time for sweet dreams
+      "body":"should contains the body of notification given to user." eg. You got your sleep now please go to bed.
+      eg.
     }}
   """
   eresult = model.generate_content(

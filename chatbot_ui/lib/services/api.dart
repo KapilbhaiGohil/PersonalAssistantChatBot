@@ -1,11 +1,10 @@
 import 'dart:convert';
-
 import 'package:chatbot_ui/services/notification.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:googleapis/authorizedbuyersmarketplace/v1.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
 
 class ChatAPI {
   static const apiUrl = "http://10.0.2.2:8000";
@@ -82,8 +81,8 @@ class ChatAPI {
             }
           } else {
             String? taskId = nInfo['task_id'] as String?;
-            String title = data['payload']['summary'] as String? ?? "Scheduled Task";
-            String body = data['payload']['desc'] as String? ?? "You have a scheduled event.";
+            String title = nInfo['title'] as String? ?? "Scheduled Task";
+            String body = nInfo['body'] as String? ?? "You have a scheduled event.Ask for more details.";
             String? startDate = nInfo['startdate'] as String?;
             String? startTime = nInfo['starttime'] as String?;
             // Check for null values before proceeding
@@ -91,8 +90,8 @@ class ChatAPI {
               DateTime scheduledTime = DateTime.parse('$startDate $startTime:00');
               if(data['payload']['daily']!= null && data['payload']['daily']==true){
                 TimeOfDay scheduledTimeOfDay = TimeOfDay(
-                  hours: scheduledTime.hour,
-                  minutes: scheduledTime.minute,
+                  hour: scheduledTime.hour,
+                  minute: scheduledTime.minute,
                 );
                 await notificationService.scheduleDailyNotification(eventId: taskId, title: title, body: body, timeOfDay: scheduledTimeOfDay);
               }else{
@@ -106,6 +105,26 @@ class ChatAPI {
             }
           }
         }
+        return data;
+      } else {
+        return {'text': "Error during API request"};
+      }
+    } catch (e) {
+      print(e);
+      return {'text': "Error during API request"};
+    }
+  }
+  Future<Map<String, dynamic>> generateMessage(String msg) async {
+    var body = jsonEncode({
+      "task": msg
+    });
+
+    try {
+      final response = await http.post(Uri.parse('$apiUrl/message'),
+          headers: {"Content-Type": "application/json"},
+          body: body);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
         return data;
       } else {
         return {'text': "Error during API request"};
