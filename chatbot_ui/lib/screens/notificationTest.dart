@@ -35,9 +35,22 @@ class TestNotificationScreen extends StatelessWidget {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
-
+                await _notificationService.scheduleChatNotification(
+                  title: 'Hi',
+                  body: 'how are you ?',
+                  eventId: 'demo id',
+                  scheduledTime: DateTime.now().add(const Duration(seconds: 0))
+                );
               },
-              child: const Text('Cancel Scheduled Notification'),
+              child: const Text('Schedule Chat Notification'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () async {
+                // You can call cancelNotification here with an example eventId
+                await _notificationService.cancelAllTypeNotification("chat_001");
+              },
+              child: const Text('Cancel Chat Notification'),
             ),
           ],
         ),

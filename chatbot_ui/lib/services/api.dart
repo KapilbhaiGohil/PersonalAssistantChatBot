@@ -12,6 +12,7 @@ class ChatAPI {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final notificationService = NotificationService();
+
   Future<String?> getFreshAccessToken() async {
     try {
       final String? accessToken = await _secureStorage.read(key: 'access_token');
@@ -76,33 +77,70 @@ class ChatAPI {
           if (nInfo['delete'] != null && nInfo['delete'] is List) {
             for (var id in nInfo['delete']) {
               if (id != null && id is String) {
-                await NotificationService().cancelNotification(id);
+                await NotificationService().cancelAllTypeNotification(id);
               }
             }
           } else {
             String? taskId = nInfo['task_id'] as String?;
-            String title = nInfo['title'] as String? ?? "Scheduled Task";
-            String body = nInfo['body'] as String? ?? "You have a scheduled event.Ask for more details.";
-            String? startDate = nInfo['startdate'] as String?;
-            String? startTime = nInfo['starttime'] as String?;
-            // Check for null values before proceeding
-            if (taskId != null && startDate != null && startTime != null) {
-              DateTime scheduledTime = DateTime.parse('$startDate $startTime:00');
-              if(data['payload']['daily']!= null && data['payload']['daily']==true){
-                TimeOfDay scheduledTimeOfDay = TimeOfDay(
-                  hour: scheduledTime.hour,
-                  minute: scheduledTime.minute,
-                );
-                await notificationService.scheduleDailyNotification(eventId: taskId, title: title, body: body, timeOfDay: scheduledTimeOfDay);
-              }else{
-                await notificationService.scheduleNotification(
-                  eventId: taskId,
-                  title: title,
-                  body: body,
-                  scheduledTime: scheduledTime,
-                );
-              }
+          String title = nInfo['title'] as String? ?? "Scheduled Task";
+          String body = nInfo['body'] as String? ?? "You have a scheduled event. Ask for more details.";
+          String? startDate = nInfo['startdate'] as String?;
+          String? startTime = nInfo['starttime'] as String?;
+          String? endTime = nInfo['endtime'] as String?;
+            String title1 = nInfo['title1'] as String? ?? "Not found title ";
+            String body1 = nInfo['body1'] as String? ?? "Not found body ";
+// Check for null values before proceeding
+          if (taskId != null && startDate != null && startTime != null && endTime != null) {
+            DateTime startDateTime = DateTime.parse('$startDate $startTime:00');
+            DateTime endDateTime = DateTime.parse('$startDate $endTime:00');
+
+            // Calculate the duration between start and end times
+            Duration duration = endDateTime.difference(startDateTime);
+
+            // Find 20% of the duration (for chat notification)
+            Duration twentyPercentDuration = duration * 0.20;
+
+            // Calculate the time for the chat notification (start time + 20% of duration)
+            DateTime chatNotificationTime = startDateTime.add(twentyPercentDuration);
+
+            // Check if it's a daily event or a one-time event
+            if (data['payload']['daily'] != null && data['payload']['daily'] == true) {
+              TimeOfDay scheduledTimeOfDay = TimeOfDay(hour: startDateTime.hour, minute: startDateTime.minute);
+              await notificationService.scheduleDailyNotification(
+                eventId: taskId,
+                title: title,
+                body: body,
+                timeOfDay: scheduledTimeOfDay,
+              );
+
+              // Schedule the chat notification after 20% of the duration
+              TimeOfDay chatNotificationTimeOfDay = TimeOfDay(hour: chatNotificationTime.hour, minute: chatNotificationTime.minute);
+
+              await notificationService.scheduleDailyChatNotification(
+                eventId: taskId,
+                title: title1,
+                body: body1,
+                timeOfDay: chatNotificationTimeOfDay,
+              );
+            } else {
+              // Schedule the exact time notification (at the start time)
+              await notificationService.scheduleNotification(
+                eventId: taskId,
+                title: title,
+                body: body,
+                scheduledTime: startDateTime,
+              );
+
+              // Schedule the chat notification after 20% of the duration
+              await notificationService.scheduleChatNotification(
+                eventId: taskId,
+                title: title1,
+                body: body1,
+                scheduledTime: chatNotificationTime,
+              );
             }
+          }
+
           }
         }
         return data;
@@ -134,7 +172,27 @@ class ChatAPI {
       return {'text': "Error during API request"};
     }
   }
+  Future<Map<String, dynamic>> generateConversation(String msg,String history) async {
+    var body = jsonEncode({
+      "msg": msg,
+      "history":history
+    });
 
+    try {
+      final response = await http.post(Uri.parse('$apiUrl/conv'),
+          headers: {"Content-Type": "application/json"},
+          body: body);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data;
+      } else {
+        return {'text': "Error during API request"};
+      }
+    } catch (e) {
+      print(e);
+      return {'text': "Error during API request"};
+    }
+  }
   Future<void> _signOut() async {
     try {
       await _auth.signOut();

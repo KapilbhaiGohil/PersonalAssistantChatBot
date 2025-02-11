@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel
 from firebase.utils1 import insertTask, retriveAllTask, updateTask, deleteTask
-from GeminiAPI.utils import generalDialog, conflictChecker,messageGenerator
+from GeminiAPI.utils import generalDialog, conflictChecker,messageGenerator,conversaction
 from CalendarAPI.utils import create_google_calendar_event, update_google_calendar_event, delete_google_calendar_event
 from fastapi.middleware.cors import CORSMiddleware
 import re
@@ -83,7 +83,9 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
                     'enddate': payload.get('enddate'),
                     'endtime': payload.get('endtime'),
                     'title':conflict_check.get('title'),
-                    'body':conflict_check.get('body')
+                    'body':conflict_check.get('body'),
+                    'title1':conflict_check.get('title1'),
+                    'body1':conflict_check.get('body1')
                 })
 
                 response['intent'] = 'new'
@@ -125,7 +127,9 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
                         return conflict_check
                     response['nInfo'].update({
                         'title':conflict_check.get('title'),
-                        'body':conflict_check.get('body')
+                        'body':conflict_check.get('body'),
+                        'title1':conflict_check.get('title1'),
+                        'body1':conflict_check.get('body1')
                     })
                 await updateTask(task_id, updated_payload, task_id)
                 response['nInfo'].update({
@@ -134,7 +138,6 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
                     'starttime': updated_payload.get('starttime'),
                     'enddate': updated_payload.get('enddate'),
                     'endtime': updated_payload.get('endtime'),
-                  
                 })
                 response['intent'] = 'new'
 
@@ -153,15 +156,31 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-class Temp(BaseModel):
+class msg(BaseModel):
     task:str
 
 @app.post("/message")
-async def process_query(temp: Temp):
+async def process_query(temp: msg):
     try:
         output = messageGenerator(temp.task)  # Pass the 'task' to the message generator
         print(output)
         return output  # Return the generated message as a JSON response
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+class Conv(BaseModel):
+    history:str
+    msg:str
+
+@app.post("/conv")
+async def conv(d:Conv):
+    try:
+        history = d.history
+        msg = d.msg
+        output = conversaction(msg, history)
+        print(output)
+        return output  
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")

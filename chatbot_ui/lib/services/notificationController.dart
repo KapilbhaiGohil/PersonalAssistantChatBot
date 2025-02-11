@@ -2,6 +2,7 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:chatbot_ui/services/notification.dart';
 
 class NotificationController {
+
   /// Detect when a new notification or schedule is created
   @pragma("vm:entry-point")
   static Future<void> onNotificationCreatedMethod(ReceivedNotification receivedNotification) async {
@@ -27,6 +28,5 @@ class NotificationController {
     // Your code here
     print("Action received: ${receivedAction.buttonKeyPressed}");
     await NotificationService().onActionReceived(receivedAction);
-    // For example, navigating to a page or performing actions
   }
 }

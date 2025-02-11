@@ -18,7 +18,7 @@ current_time = now.strftime("%H:%M")
 
 def generalDialog(user_input,chat_history):
   prompt = f"""
-    - you are a personal assistant bot.
+    - you can provide answers according to your knowledge on the top of that you are a personal assistant bot.
     - you are managing the user's tasks.
     - can not do multiple task at a time.
     - based on user query you can do following actions
@@ -89,7 +89,7 @@ def messageGenerator(Task):
   prompt = f"""
     # you are message provide which is creative and beautifull to the given task.
     - give title and body as a output.
-
+    - each time msg title and body should be completly different from given.
     - Context
       - Task : {Task}
 
@@ -119,6 +119,10 @@ def conflictChecker(newTask,dataResult,intent):
 
     # second task : you are message provide which is creative and beautifull to the given task.
     - give title and body as a output.
+    
+    # third task : task is given to you and you are going to ask user about the task after 10 minutes
+    - give title and body for that.
+    - eg. how meeting is going,need any help kind of questoins.
 
     - Context
       - intent:{intent}
@@ -133,6 +137,10 @@ def conflictChecker(newTask,dataResult,intent):
       # second task
       "title":"should contains title of notification given to user." eg. Time for sweet dreams
       "body":"should contains the body of notification given to user." eg. You got your sleep now please go to bed.
+
+      # third task
+      "title1":"title of intereactive msg by bot to the user"
+      "body1":"body of intereactive msg by bot to the user"
       eg.
     }}
   """
@@ -147,3 +155,45 @@ def conflictChecker(newTask,dataResult,intent):
   print(extracted_data)
 
   return extracted_data
+
+
+def conversaction(msg,history):
+  prompt = f"""
+    # you have a general conversation with user.
+    - history and msg of user provided to you 
+    - in response give msg which i should give to user.
+    - give res in 40 words.
+    - Output response
+    {{
+      res:"response need to give to the user.
+    }}
+  """
+  eresult = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json"
+            ),
+        )
+  
+  extracted_data = json.loads(eresult.text)
+  return extracted_data
+
+# def messageGeneratorForInt(task):
+#   prompt = f"""
+#     # you are beautiful message generator
+#     - 
+#     - Output response
+#     {{
+#       "title":"title of message."
+#       "body":"body of message."
+#     }}
+#   """
+#   eresult = model.generate_content(
+#             prompt,
+#             generation_config=genai.GenerationConfig(
+#                 response_mime_type="application/json"
+#             ),
+#         )
+  
+#   extracted_data = json.loads(eresult.text)
+#   return extracted_data
