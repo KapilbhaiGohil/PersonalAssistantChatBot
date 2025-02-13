@@ -8,6 +8,8 @@ import 'package:chatbot_ui/screens/login.dart';
 import 'package:chatbot_ui/utils/theme.dart';
 import 'package:chatbot_ui/services/notification.dart'; // Updated import
 
+final GlobalKey<HomeScreenState> homeScreenKey = GlobalKey<HomeScreenState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
@@ -49,7 +51,7 @@ class AuthWrapper extends StatelessWidget {
           );
         }
         if (snapshot.hasData) {
-          return HomeScreen();
+          return HomeScreen(key: homeScreenKey,);
         }
         return const LoginScreen();
       },

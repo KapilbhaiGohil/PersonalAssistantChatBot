@@ -1,4 +1,6 @@
+import 'package:chatbot_ui/widgets/Input.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/notification.dart'; // Import your NotificationService class
 
 class TestNotificationScreen extends StatelessWidget {
@@ -8,6 +10,7 @@ class TestNotificationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final TextEditingController controller = TextEditingController();
     return Scaffold(
       appBar: AppBar(title: const Text('Test Notifications')),
       body: Center(
@@ -52,6 +55,7 @@ class TestNotificationScreen extends StatelessWidget {
               },
               child: const Text('Cancel Chat Notification'),
             ),
+            ChatInputField(controller: controller, onSend: ()=>{}),
           ],
         ),
       ),

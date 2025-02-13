@@ -1,61 +1,45 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-
-import '../utils/colors.dart';
 
 class ChatBubble extends StatelessWidget {
   final String message;
   final String sender;
-  final int delay;
 
-  const ChatBubble({super.key, required this.message, required this.sender, this.delay = 0});
+  const ChatBubble({super.key, required this.message, required this.sender});
 
   @override
   Widget build(BuildContext context) {
-    bool isUser = sender == 'user';
-    Alignment alignment = isUser ? Alignment.centerRight : Alignment.centerLeft;
-    Color bubbleColor = isUser ? AppColors.buttonBackgroundColor : AppColors.cardBackgroundColor;
-    Color textColor = isUser ? AppColors.textColor : AppColors.secondaryTextColor;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Align(
-        alignment: alignment,
-        child: TweenAnimationBuilder(
-          duration: const Duration(milliseconds: 500),
-          tween: Tween(begin: 0.0, end: 1.0),
-          builder: (context, double opacity, child) {
-            return Opacity(
-              opacity: opacity,
-              child: ScaleTransition(
-                scale: CurvedAnimation(
-                  parent: AlwaysStoppedAnimation(opacity),
-                  curve: Curves.easeOut,
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15.0),
-                  decoration: BoxDecoration(
-                    color: bubbleColor,
-                    borderRadius: BorderRadius.circular(20.0),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 8.0,
-                        offset: Offset(2, 2),
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    message,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 16.0,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
+    final bool isUser  = sender == 'user';
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
+        decoration: BoxDecoration(
+          gradient: isUser
+              ? const LinearGradient(
+            colors: [Color(0xFF6A5AE0), Color(0xFF836FFF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+              : const LinearGradient(
+            colors: [Color(0xFFE8EAF6), Color(0xFFD1D9FF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(20),
+            topRight: const Radius.circular(20),
+            bottomLeft: isUser ? const Radius.circular(20) : Radius.zero,
+            bottomRight: isUser ? Radius.zero : const Radius.circular(20),
+          ),
+        ),
+        child: Text(
+          message,
+          style: TextStyle(
+            fontSize: 16,
+            color: isUser ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );

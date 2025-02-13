@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel
-from firebase.utils1 import insertTask, retriveAllTask, updateTask, deleteTask
+from firebase.utils1 import deleteMessages, insertTask, retriveAllTask, updateTask, deleteTask,insertMessage,retriveMessages
 from GeminiAPI.utils import generalDialog, conflictChecker,messageGenerator,conversaction
 from CalendarAPI.utils import create_google_calendar_event, update_google_calendar_event, delete_google_calendar_event
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,7 +41,7 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
         email = input.email
         access_token = authorization
         logger.info(f"Access Token Received: {access_token}")
-
+        await insertMessage(email,user_input,'user')
         info = await retriveAllTask(email)
         tasks = info.get('data', []) if isinstance(info, dict) else []
         history += f'\nDATARESULT:{tasks}'
@@ -71,6 +71,7 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
                         payload['addedToCalendar'] = True
                         temp = await insertTask(email, payload, event_info.get('id'))
                     else:
+                        await insertMessage(email,conflict_check['text'],'bot')
                         return conflict_check
                 else:
                     payload['addedToCalendar'] = False
@@ -124,6 +125,7 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
                                 updated_payload.get('daily', False)
                             )
                     else:
+                        await insertMessage(email,conflict_check['text'],'bot')
                         return conflict_check
                     response['nInfo'].update({
                         'title':conflict_check.get('title'),
@@ -150,7 +152,7 @@ async def process_query(input: QueryInput, authorization: str = Depends(extract_
                     await deleteTask(obj.get('_id'))
                     response['nInfo']['delete'].append(obj.get('_id'))
                 response['intent'] = 'new'
-
+        await insertMessage(email,response['text'],'bot')
         return response
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
@@ -162,9 +164,9 @@ class msg(BaseModel):
 @app.post("/message")
 async def process_query(temp: msg):
     try:
-        output = messageGenerator(temp.task)  # Pass the 'task' to the message generator
+        output = messageGenerator(temp.task)  
         print(output)
-        return output  # Return the generated message as a JSON response
+        return output
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
@@ -172,15 +174,42 @@ async def process_query(temp: msg):
 class Conv(BaseModel):
     history:str
     msg:str
+    email:str
 
 @app.post("/conv")
 async def conv(d:Conv):
     try:
         history = d.history
         msg = d.msg
+        email = d.email
+        await insertMessage(email,msg,'user')
         output = conversaction(msg, history)
+        await insertMessage(email,output['res'],'bot')
         print(output)
         return output  
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    
+class retriveDTO(BaseModel):
+    email:str
+
+@app.post("/retriveMessages")
+async def ret(d:retriveDTO):
+    try:
+        email = d.email
+        res = await retriveMessages(email)
+        return res
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    
+@app.post("/deleteMessages")
+async def delete_messages(d: retriveDTO):
+    try:
+        email = d.email
+        res = await deleteMessages(email)
+        return res
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")

@@ -5,14 +5,17 @@ import 'package:crypto/crypto.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:android_intent_plus/flag.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import '../main.dart';
 import 'notificationController.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
+  static final user= FirebaseAuth.instance.currentUser;
   NotificationService._internal();
 
   Future<void> initNotifications() async {
@@ -25,9 +28,12 @@ class NotificationService {
 
     AwesomeNotifications().setListeners(
       onActionReceivedMethod: NotificationController.onActionReceivedMethod,
-      onNotificationCreatedMethod: NotificationController.onNotificationCreatedMethod,
-      onNotificationDisplayedMethod: NotificationController.onNotificationDisplayedMethod,
-      onDismissActionReceivedMethod: NotificationController.onDismissActionReceivedMethod,
+      onNotificationCreatedMethod:
+          NotificationController.onNotificationCreatedMethod,
+      onNotificationDisplayedMethod:
+          NotificationController.onNotificationDisplayedMethod,
+      onDismissActionReceivedMethod:
+          NotificationController.onDismissActionReceivedMethod,
     );
 
     tz.initializeTimeZones();
@@ -65,49 +71,63 @@ class NotificationService {
         final fetchData = await ChatAPI().generateMessage(parsedData['body']);
         parsedData['body'] = fetchData['body'];
         parsedData['title'] = fetchData['title'];
-        await _scheduleNotification(parsedData, DateTime.now().add(const Duration(minutes: 10)), true, false);
+        await _scheduleNotification(parsedData,
+            DateTime.now().add(const Duration(minutes: 10)), true, false);
         break;
       case 'action_reply':
         final userReply = receivedAction.buttonKeyInput;
-    print("User Reply: $userReply");
+        print("User Reply: $userReply");
 
-    String currentBody = parsedData['body'];
-    // Assuming the chatbot generates a response to the user's reply
-    final fetchData = await ChatAPI().generateConversation(userReply, currentBody);
+        String currentBody = parsedData['body'];
+        String history = parsedData['history'];
+        history += "\nUser:$userReply";
+        final fetchData =
+            await ChatAPI().generateConversation(userReply,history,user?.email);
+        history += "\nBot:${fetchData['res']}";
+        String updatedBody = "";
 
-    // Append the response to the existing notification body
-    String updatedBody = "Bot: ${fetchData['res']}";
-    int notificationId = _generateNotificationId(eventId, 1);
-    // Update the existing notification with the new body, ensuring the reply button is still there
-    await AwesomeNotifications().createNotification(
-    content: NotificationContent(
-    id: notificationId,  // Same ID to update the notification
-    channelKey: 'scheduled_channel_id',  // Your notification channel
-    title: parsedData['title'] ?? "Chatbot Response",
-    body: updatedBody,  // Appending the response here
-    payload: {
-    'data': jsonEncode({
-    'eventId': parsedData['eventId'],
-    'title': parsedData['title'],
-    'body': updatedBody,
-    }),
-    },
-    ),
-    actionButtons: _chatNotificationActions(),  // Make sure the reply button is added here
-    );
-    print("Notification body updated with reply.");
-    break;
+        String boldYou = "<b>You</b>";
+        String boldBot = "<b>Bot</b>";
+
+        updatedBody += "$boldYou<br>";
+        updatedBody += "$userReply<br>";
+        updatedBody += "$boldBot<br>";
+        updatedBody += "${fetchData['res']}";
+        int notificationId = _generateNotificationId(eventId, 1);
+        await AwesomeNotifications().createNotification(
+          content: NotificationContent(
+              id: notificationId,
+              channelKey: 'scheduled_channel_id',
+              title: parsedData['title'] ?? "Chatbot Response",
+              body: updatedBody,
+              payload: {
+                'data': jsonEncode({
+                  'eventId': parsedData['eventId'],
+                  'title': parsedData['title'],
+                  'body': updatedBody,
+                  'history':history
+                }),
+              },
+              notificationLayout: NotificationLayout.BigText),
+          actionButtons:
+              _chatNotificationActions(), // Make sure the reply button is added here
+        );
+        homeScreenKey.currentState?.loadMessages();
+        print("Notification body updated with reply.");
+        break;
       default:
         print("Notification tapped without a registered button.");
     }
   }
 
+
   int _generateNotificationId(String input, int type) {
     int baseId = sha256
-        .convert(utf8.encode(input))
-        .bytes
-        .sublist(0, 4)
-        .fold(0, (a, b) => (a << 8) | b) & 0xFFFFFFFF;
+            .convert(utf8.encode(input))
+            .bytes
+            .sublist(0, 4)
+            .fold(0, (a, b) => (a << 8) | b) &
+        0xFFFFFFFF;
 
     baseId = baseId % 100000000;
     return baseId * 10 + (type % 10);
@@ -115,7 +135,11 @@ class NotificationService {
 
   Future<void> showInstantNotification() async {
     print("Showing instant notification");
-    final data = {'eventId': 'instant', 'title': 'Instant Notification', 'body': 'This is an instant notification with options!'};
+    final data = {
+      'eventId': 'instant',
+      'title': 'Instant Notification',
+      'body': 'This is an instant notification with options!'
+    };
     await _scheduleNotification(data, DateTime.now(), false, false);
   }
 
@@ -136,8 +160,11 @@ class NotificationService {
     required TimeOfDay timeOfDay,
   }) async {
     final now = DateTime.now();
-    var scheduledTime = DateTime(now.year, now.month, now.day, timeOfDay.hour, timeOfDay.minute);
-    if (scheduledTime.isBefore(now)) scheduledTime = scheduledTime.add(const Duration(days: 1));
+    var scheduledTime = DateTime(
+        now.year, now.month, now.day, timeOfDay.hour, timeOfDay.minute);
+    if (scheduledTime.isBefore(now)) {
+      scheduledTime = scheduledTime.add(const Duration(days: 1));
+    }
 
     final data = {'eventId': eventId, 'title': title, 'body': body};
     await _scheduleNotification(data, scheduledTime, true, false);
@@ -149,16 +176,9 @@ class NotificationService {
     required String body,
     required DateTime scheduledTime,
   }) async {
-    final data = {'eventId': eventId, 'title': title, 'body': body};
-
-
-
+    final data = {'eventId': eventId, 'title': title, 'body': body,'history':'Context : $title & $body'};
 
     scheduledTime = DateTime.now().add(const Duration(seconds: 5));
-
-
-
-
 
     await _scheduleNotification(data, scheduledTime, false, true);
   }
@@ -170,30 +190,35 @@ class NotificationService {
     required TimeOfDay timeOfDay,
   }) async {
     final now = DateTime.now();
-    var scheduledTime = DateTime(now.year, now.month, now.day, timeOfDay.hour, timeOfDay.minute);
-    if (scheduledTime.isBefore(now)) scheduledTime = scheduledTime.add(const Duration(days: 1));
+    var scheduledTime = DateTime(
+        now.year, now.month, now.day, timeOfDay.hour, timeOfDay.minute);
+    if (scheduledTime.isBefore(now)) {
+      scheduledTime = scheduledTime.add(const Duration(days: 1));
+    }
 
-    final data = {'eventId': eventId, 'title': title, 'body': body};
+    final data = {'eventId': eventId, 'title': title, 'body': body,'history':'Context : $title & $body'};
     await _scheduleNotification(data, scheduledTime, true, true);
   }
 
-  Future<void> _scheduleNotification(Map<String, dynamic> data, DateTime scheduledTime, bool repeats, bool isChat) async {
+  Future<void> _scheduleNotification(Map<String, dynamic> data,
+      DateTime scheduledTime, bool repeats, bool isChat) async {
     final id = _generateNotificationId(data['eventId'], isChat ? 1 : 0);
     final payload = jsonEncode(data);
 
-    print("Scheduling notification for eventId: ${data['eventId']} at $scheduledTime");
+    print(
+        "Scheduling notification for eventId: ${data['eventId']} at $scheduledTime");
 
-    // Determine the appropriate action buttons based on the notification type
-    final actionButtons = isChat ? _chatNotificationActions() : _notificationActions();
+    final actionButtons =
+        isChat ? _chatNotificationActions() : _notificationActions();
 
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
-        id: id,
-        channelKey: 'scheduled_channel_id',
-        title: data['title'],
-        body: data['body'],
-        payload: {'data': payload},
-      ),
+          id: id,
+          channelKey: 'scheduled_channel_id',
+          title: data['title'],
+          body: data['body'],
+          payload: {'data': payload},
+          notificationLayout: NotificationLayout.BigText),
       schedule: NotificationCalendar(
         hour: scheduledTime.hour,
         minute: scheduledTime.minute,
@@ -268,7 +293,8 @@ class NotificationService {
   Future<bool> _isAndroid12OrHigher() async {
     try {
       final int sdkInt = await const MethodChannel('flutter/device_info')
-          .invokeMethod<int>('getSdkInt') ?? 0;
+              .invokeMethod<int>('getSdkInt') ??
+          0;
       print("Android SDK version: $sdkInt");
       return sdkInt >= 31;
     } catch (e) {

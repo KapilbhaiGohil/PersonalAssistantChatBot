@@ -162,8 +162,11 @@ def conversaction(msg,history):
     # you have a general conversation with user.
     - history and msg of user provided to you 
     - in response give msg which i should give to user.
-    - give res in 40 words.
+    - output in 70 word max.
     - Output response
+    Context : 
+      - message : {msg}
+      - history : {history}
     {{
       res:"response need to give to the user.
     }}

@@ -1,4 +1,5 @@
 import 'package:chatbot_ui/services/notificationController.dart';
+import 'package:chatbot_ui/widgets/Input.dart';
 import 'package:flutter/material.dart';
 import 'package:chatbot_ui/utils/colors.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -7,22 +8,23 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/api.dart';
 import '../services/notification.dart';
 import '../widgets/utils.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   String chatHistory = '';
   String stage = 'new';
-  List<Map<String, String>> messages = [];
+  List<Map<String, dynamic>> messages = []; // Store datetime along with the message
   late AnimationController _menuController;
   late Animation<double> _menuAnimation;
   bool isMenuOpen = false;
@@ -38,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       parent: _menuController,
       curve: Curves.easeInOut,
     );
+    loadMessages(); // Load messages when the screen is opened
   }
 
   @override
@@ -48,45 +51,87 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  void _toggleMenu() {
-    setState(() {
-      isMenuOpen = !isMenuOpen;
-      if (isMenuOpen) {
-        _menuController.forward();
+  void loadMessages() async {
+    String? email = FirebaseAuth.instance.currentUser?.email;
+    if (email != null) {
+      var response = await ChatAPI().retriveMessages(email); // Call your API
+      if (response['code'] == 200) {
+        List<dynamic> data = response['data'] as List<dynamic>;
+        List<Map<String, dynamic>> mappedMessages = data.map<Map<String, dynamic>>((msg) {
+          return {
+            'sender': msg['by']?.toString() ?? '',
+            'message': msg['msg']?.toString() ?? '',
+            'dateTime': DateTime.parse(msg['dateTime']?.toString() ?? DateTime.now().toString())
+          };
+        }).toList();
+
+        setState(() {
+          messages = mappedMessages;
+        });
       } else {
-        _menuController.reverse();
+        setState(() {
+          messages = [];
+        });
       }
-    });
-  }
-
-  void _closeMenu() {
-    if (isMenuOpen) {
-      setState(() {
-        isMenuOpen = false;
-        _menuController.reverse();
-      });
     }
   }
 
-  Future<void> _signOut() async {
-    try {
-      await _secureStorage.delete(key: 'access_token');
-      await _secureStorage.delete(key: 'expiration_time');
-      await FirebaseAuth.instance.signOut();
-      await _googleSignIn.signOut();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error during sign out: $e')),
+  String formatDate(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  String formatTime(DateTime date) {
+    return DateFormat('HH:mm').format(date);
+  }
+
+  List<Widget> buildMessageList() {
+    Map<String, List<Map<String, dynamic>>> groupedMessages = {};
+
+    // Group messages by day
+    for (var message in messages) {
+      String formattedDate = formatDate(message['dateTime']);
+      if (groupedMessages[formattedDate] == null) {
+        groupedMessages[formattedDate] = [];
+      }
+      groupedMessages[formattedDate]?.add(message);
+    }
+
+    List<Widget> messageWidgets = [];
+
+    // Build the UI for each day and its messages
+    groupedMessages.forEach((date, messageList) {
+      messageWidgets.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Text(
+            date,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+        ),
       );
-    }
-  }
-
-  void _clearHistory() {
-    setState(() {
-      messages.clear();
-      chatHistory = '';
-      stage = 'new';
+      messageList.forEach((message) {
+        messageWidgets.add(
+          Column(
+            crossAxisAlignment: message['sender'] == 'user' ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              ChatBubble(
+                message: message['message'],
+                sender: message['sender'],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 0.0),
+                child: Text(
+                  formatTime(message['dateTime']),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        );
+      });
     });
+
+    return messageWidgets;
   }
 
   @override
@@ -95,8 +140,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       onTap: _closeMenu,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text("Chat Application"),
-          backgroundColor: AppColors.appBarColor,
+          title: const Text("Chat Application"
+          ,style: TextStyle(
+              fontSize: 16,
+              color:  Colors.white ,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          backgroundColor: const Color(0xFF6A5AE0),
           leading: IconButton(
             icon: AnimatedIcon(
               icon: AnimatedIcons.menu_close,
@@ -115,23 +166,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         backgroundColor: AppColors.scaffoldBackgroundColor,
         body: Stack(
           children: [
+            Positioned.fill(
+              child: Image.asset(
+                'lib/assets/background.jpg', // Replace with your image path
+                fit: BoxFit.cover, // Adjust to fill the screen
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
                   Expanded(
-                    child: ListView.builder(
+                    child: ListView(
                       controller: _scrollController,
-                      itemCount: messages.length,
-                      itemBuilder: (context, index) {
-                        String sender = messages[index]['sender']!;
-                        String message = messages[index]['message']!;
-                        return ChatBubble(
-                          message: message,
-                          sender: sender,
-                          delay: index * 300,
-                        );
-                      },
+                      children: buildMessageList(),  // Use the new message list builder
                     ),
                   ),
                   Padding(
@@ -139,25 +187,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     child: Row(
                       children: [
                         Expanded(
-                          child: TextField(
-                            controller: _messageController,
-                            decoration: InputDecoration(
-                              hintText: 'Type a message...',
-                              filled: true,
-                              fillColor: AppColors.cardBackgroundColor,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30.0),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          onPressed: _sendMessage,
-                          icon: const Icon(Icons.send),
-                          color: AppColors.buttonBackgroundColor,
+                          child: ChatInputField(controller: _messageController, onSend: _sendMessage),
                         ),
                       ],
                     ),
@@ -203,10 +233,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     String? email = FirebaseAuth.instance.currentUser?.email;
 
     if (message.isNotEmpty) {
+      DateTime now = DateTime.now();
       setState(() {
         messages.add({
           'sender': 'user',
           'message': message,
+          'dateTime': now,
         });
         chatHistory += '\nUser: $message';
         _scrollToBottom();
@@ -224,10 +256,37 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         messages.add({
           'sender': 'api',
           'message': '$apiResponse',
+          'dateTime': DateTime.now(),
         });
       });
       _scrollToBottom();
     }
+  }
+
+  Future<bool?> _showConfirmationDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Are you sure?'),
+          content: const Text('This action will delete all your messages permanently.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false); // User pressed No
+              },
+              child: const Text('No'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true); // User pressed Yes
+              },
+              child: const Text('Yes'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _scrollToBottom() {
@@ -240,5 +299,71 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         );
       }
     });
+  }
+
+  void _toggleMenu() {
+    setState(() {
+      isMenuOpen = !isMenuOpen;
+      if (isMenuOpen) {
+        _menuController.forward();
+      } else {
+        _menuController.reverse();
+      }
+    });
+  }
+
+  void _closeMenu() {
+    if (isMenuOpen) {
+      setState(() {
+        isMenuOpen = false;
+        _menuController.reverse();
+      });
+    }
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await _secureStorage.delete(key: 'access_token');
+      await _secureStorage.delete(key: 'expiration_time');
+      await FirebaseAuth.instance.signOut();
+      await _googleSignIn.signOut();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error during sign out: $e')),
+      );
+    }
+  }
+
+  Future<void> _clearHistory() async {
+    if (messages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No messages to delete')),
+      );
+      return;
+    }
+    bool? confirmDelete = await _showConfirmationDialog();
+
+    if (confirmDelete == true) {
+      String? email = FirebaseAuth.instance.currentUser?.email;
+
+      if (email != null) {
+        var response = await ChatAPI().deleteMessages(email); // Call API to delete all messages
+
+        if (response['code'] == 200) {
+          setState(() {
+            messages.clear();
+            chatHistory = '';
+            stage = 'new';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('All messages deleted successfully')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error deleting all messages')),
+          );
+        }
+      }
+    }
   }
 }

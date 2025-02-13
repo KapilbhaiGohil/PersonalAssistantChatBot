@@ -1,3 +1,4 @@
+from datetime import datetime
 from pymongo import MongoClient
 from pydantic import BaseModel
 from bson import ObjectId
@@ -93,3 +94,74 @@ async def deleteTask(task_id: str) -> Dict[str, Any]:
     
     except Exception as e:
         return {"msg": f"Error deleting task: {e}", "code": 500}
+    
+messages_collection = db['Messages']
+
+async def insertMessage(email: str, msg: str, by: str) -> Dict[str, Any]:
+    if not email or not msg or not by:
+        return {"msg": "Email, message, and sender (bot/user) are required", "code": 400}
+
+    if by not in ['bot', 'user']:
+        return {"msg": "Sender must be either 'bot' or 'user'", "code": 400}
+
+    try:
+        date_time = datetime.now().isoformat()
+
+        message_data = {
+            "dateTime": date_time,
+            "by": by,
+            "msg": msg
+        }
+
+        existing_user_messages = messages_collection.find_one({"email": email})
+
+        if existing_user_messages:
+            result = messages_collection.update_one(
+                {"email": email},
+                {"$push": {"messages": message_data}}
+            )
+        else:
+            result = messages_collection.insert_one({
+                "email": email,
+                "messages": [message_data]
+            })
+
+        return {"msg": "Message added successfully", "code": 200}
+
+    except Exception as e:
+        return {"msg": f"Error inserting message: {e}", "code": 500}
+    
+async def retriveMessages(email: str) -> Dict[str, Any]:
+    if not email:
+        return {"msg": "Email is required", "code": 400}
+
+    try:
+        user_messages = messages_collection.find_one({"email": email})
+
+        if not user_messages or not user_messages.get("messages"):
+            return {"msg": "No messages found for this user", "code": 404}
+
+        sorted_messages = sorted(user_messages["messages"], key=lambda x: x["dateTime"])
+
+        return {
+            "msg": "Messages retrieved successfully",
+            "code": 200,
+            "data": sorted_messages
+        }
+
+    except Exception as e:
+        return {"msg": f"Error retrieving messages: {e}", "code": 500}
+
+async def deleteMessages(email: str) -> Dict[str, Any]:
+    if not email:
+        return {"msg": "Email is required", "code": 400}
+
+    try:
+        result = messages_collection.delete_one({"email": email})
+        
+        if result.deleted_count == 0:
+            return {"msg": "No messages found for this user", "code": 404}
+        
+        return {"msg": "Messages deleted successfully", "code": 200}
+    except Exception as e:
+        return {"msg": f"Error deleting messages: {e}", "code": 500}

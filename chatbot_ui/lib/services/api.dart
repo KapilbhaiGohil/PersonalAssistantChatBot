@@ -172,10 +172,11 @@ class ChatAPI {
       return {'text': "Error during API request"};
     }
   }
-  Future<Map<String, dynamic>> generateConversation(String msg,String history) async {
+  Future<Map<String, dynamic>> generateConversation(String msg,String history,email) async {
     var body = jsonEncode({
       "msg": msg,
-      "history":history
+      "history":history,
+      "email":email
     });
 
     try {
@@ -187,6 +188,49 @@ class ChatAPI {
         return data;
       } else {
         return {'text': "Error during API request"};
+      }
+    } catch (e) {
+      print(e);
+      return {'text': "Error during API request"};
+    }
+  }
+  Future<Map<String, dynamic>> retriveMessages(String email) async {
+    var body = jsonEncode({
+      "email":email
+    });
+
+    try {
+      final response = await http.post(Uri.parse('$apiUrl/retriveMessages'),
+          headers: {"Content-Type": "application/json"},
+          body: body);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data;
+      } else if(response.statusCode == 404){
+        return {'msg': "no messages",'data':[]};
+      }else{
+        return {'msg':"Error while retrive messages API request"};
+      }
+    } catch (e) {
+      print(e);
+      return {'text': "Error during API request"};
+    }
+  }
+  Future<Map<String, dynamic>> deleteMessages(String email) async {
+    var body = jsonEncode({
+      "email": email,
+    });
+
+    try {
+      final response = await http.post(Uri.parse('$apiUrl/deleteMessages'),
+          headers: {"Content-Type": "application/json"},
+          body: body);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data;
+      } else {
+        return {'msg': "Error while deleting messages"};
       }
     } catch (e) {
       print(e);
