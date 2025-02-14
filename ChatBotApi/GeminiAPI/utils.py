@@ -9,7 +9,7 @@ load_dotenv('./config.env')
 GEMINI_KEY = os.getenv("GEMINI_KEY")
 
 genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-2.0-flash")
 
 now = datetime.now()
 current_date = now.strftime("%Y-%m-%d")  
@@ -18,10 +18,14 @@ current_time = now.strftime("%H:%M")
 
 def generalDialog(user_input,chat_history):
   prompt = f"""
-    - you can provide answers according to your knowledge on the top of that you are a personal assistant bot.
-    - you are managing the user's tasks.
+
+     You are a helpful and versatile assistant. You have to answer general knowledge questions, manage user tasks, and handle calendar requests. 
+    
+    
     - can not do multiple task at a time.
     - based on user query you can do following actions
+      - answer any questions user have and try to help according to your knowledge.
+      additionally you can
       - add task into the calendar (for this start dateTime and end dateTime required)
       - update specific task
       - delete specific task
@@ -37,8 +41,9 @@ def generalDialog(user_input,chat_history):
         - important -> take confirmation from user that the action can not be undone and specify task that you are going to delete.
     - if user wants to retrive task then give in setence format rather than json format.
     - for performing corrsponding action to database before response sended to user make dbAction = action to be performed and isInfoIncomplete = False.
+    - never specify anyting regarding Changes saved to database but notification not allowed. you can allow notification in the app settings. in your response.
     - Context:
-      - Current Date: {current_date} ({current_day})
+      - Today Date and Day: {current_date} ({current_day})
       - Current Time: {current_time}
       - Previous Conversation: {chat_history}
       - User Input: "{user_input}"
@@ -109,13 +114,14 @@ def messageGenerator(Task):
   extracted_data = json.loads(eresult.text)
   return extracted_data
 
-def conflictChecker(newTask,dataResult,intent):
+def conflictChecker(conflictResult,dataResult,intent):
   prompt = f"""
-    # first task : you are conflict checker and user wants to add task/update task.
-    - you are given with list of task already added and new task/updated task that user wants to add/update.
-    - check precisely every minute is important.
-    - find conflit if any .
-    - ex. you want to add new meeting but it conflict with the another task.
+    # first task : you are conflict checker.
+
+    - you are given with list of task already added and conflict information.
+    - give output isConflict = true if result is true else false;
+    - in text give message need to output to user. 
+    - for given task id in conflict infor find from dataresult and frame beautiful msg without including task id.
 
     # second task : you are message provide which is creative and beautifull to the given task.
     - give title and body as a output.
@@ -125,9 +131,10 @@ def conflictChecker(newTask,dataResult,intent):
     - eg. how meeting is going,need any help kind of questoins.
 
     - Context
-      - intent:{intent}
+      - Conflict information:{conflictResult}
       - dataResult:{dataResult}
-      - newTask/updatedTask:{newTask}
+      - intent:{intent}
+
     - Output response
     {{
       
@@ -181,22 +188,31 @@ def conversaction(msg,history):
   extracted_data = json.loads(eresult.text)
   return extracted_data
 
-# def messageGeneratorForInt(task):
-#   prompt = f"""
-#     # you are beautiful message generator
-#     - 
-#     - Output response
-#     {{
-#       "title":"title of message."
-#       "body":"body of message."
-#     }}
-#   """
-#   eresult = model.generate_content(
-#             prompt,
-#             generation_config=genai.GenerationConfig(
-#                 response_mime_type="application/json"
-#             ),
-#         )
-  
-#   extracted_data = json.loads(eresult.text)
-#   return extracted_data
+def check_task_conflict(new_task, existing_tasks):
+    print('---------------------------------------------------------------------------------------------------')
+    print(new_task, existing_tasks)
+    
+    new_task_start = datetime.strptime(f"{new_task['startdate']} {new_task['starttime']}", "%Y-%m-%d %H:%M")
+    new_task_end = datetime.strptime(f"{new_task['enddate']} {new_task['endtime']}", "%Y-%m-%d %H:%M")
+    
+    conflicting_tasks = []
+
+    for task in existing_tasks:
+        task_start = datetime.strptime(f"{task['task']['startdate']} {task['task']['starttime']}", "%Y-%m-%d %H:%M")
+        task_end = datetime.strptime(f"{task['task']['enddate']} {task['task']['endtime']}", "%Y-%m-%d %H:%M")
+
+        if not task['task']['daily']:
+            if (new_task_start < task_end and new_task_end > task_start): 
+                conflicting_tasks.append(f"Conflict with regular task: {task['task']['task']} (ID: {task['task_id']})")
+
+        if task['task']['daily']:
+            task_start_time = datetime.strptime(f"2025-02-14 {task['task']['starttime']}", "%Y-%m-%d %H:%M")
+            task_end_time = datetime.strptime(f"2025-02-14 {task['task']['endtime']}", "%Y-%m-%d %H:%M")
+            if (new_task_start.time() < task_end_time.time() and new_task_end.time() > task_start_time.time()):
+                conflicting_tasks.append(f"Conflict with daily task: {task['task']['task']} (ID: {task['task_id']})")
+    
+    if conflicting_tasks:
+        return {"isConflict": True, "conflicting_tasks": conflicting_tasks}
+    else:
+        return {"isConflict": False, "message": "No conflict"}
+
