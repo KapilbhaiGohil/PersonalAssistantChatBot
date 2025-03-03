@@ -216,6 +216,7 @@ def conversaction(msg,history):
     }}
   """
   return generate_response(prompt=prompt)
+from datetime import datetime
 
 def check_task_conflict(new_task, existing_tasks):
     print('---------------------------------------------------------------------------------------------------')
@@ -227,21 +228,23 @@ def check_task_conflict(new_task, existing_tasks):
     conflicting_tasks = []
 
     for task in existing_tasks:
-        task_start = datetime.strptime(f"{task['task']['startdate']} {task['task']['starttime']}", "%Y-%m-%d %H:%M")
-        task_end = datetime.strptime(f"{task['task']['enddate']} {task['task']['endtime']}", "%Y-%m-%d %H:%M")
+        task_data = task['task']
+        task_start = datetime.strptime(f"{task_data['startdate']} {task_data['starttime']}", "%Y-%m-%d %H:%M")
+        task_end = datetime.strptime(f"{task_data['enddate']} {task_data['endtime']}", "%Y-%m-%d %H:%M")
 
-        if not task['task']['daily']:
+        is_daily = task_data.get('daily', False)
+
+        if not is_daily:
             if (new_task_start < task_end and new_task_end > task_start): 
-                conflicting_tasks.append(f"Conflict with regular task: {task['task']['task']} (ID: {task['task_id']})")
+                conflicting_tasks.append(f"Conflict with regular task: {task_data['task']} (ID: {task['task_id']})")
 
-        if task['task']['daily']:
-            task_start_time = datetime.strptime(f"2025-02-14 {task['task']['starttime']}", "%Y-%m-%d %H:%M")
-            task_end_time = datetime.strptime(f"2025-02-14 {task['task']['endtime']}", "%Y-%m-%d %H:%M")
+        else:
+            task_start_time = datetime.strptime(f"2025-02-14 {task_data['starttime']}", "%Y-%m-%d %H:%M")
+            task_end_time = datetime.strptime(f"2025-02-14 {task_data['endtime']}", "%Y-%m-%d %H:%M")
             if (new_task_start.time() < task_end_time.time() and new_task_end.time() > task_start_time.time()):
-                conflicting_tasks.append(f"Conflict with daily task: {task['task']['task']} (ID: {task['task_id']})")
+                conflicting_tasks.append(f"Conflict with daily task: {task_data['task']} (ID: {task['task_id']})")
     
     if conflicting_tasks:
         return {"isConflict": True, "conflicting_tasks": conflicting_tasks}
     else:
         return {"isConflict": False, "message": "No conflict"}
-
